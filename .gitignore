@@ -3,6 +3,10 @@
 .DS_Store
 **/.DS_Store
 
+# Generated lab credentials
+lab/keys/*
+!lab/keys/.gitkeep
+
 # Logs
 
 logs

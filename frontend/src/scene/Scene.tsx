@@ -23,6 +23,8 @@ import { CAMERA } from '../lib/layout'
 import { usePlantStore } from '../store/usePlantStore'
 
 import { GenericFacilityScene } from '../facilities/GenericFacilityScene'
+import { HospitalScene } from '../facilities/HospitalScene'
+import { HospitalFacilityScene } from '../facilities/HospitalFacilityScene'
 import { InfusionScene } from '../facilities/InfusionScene'
 import { MRIScene } from '../facilities/MRIScene'
 
@@ -141,6 +143,7 @@ export default function Scene() {
   const day = usePlantStore((s) => s.dayMode)
   const schematic = usePlantStore((s) => s.sceneMode) === 'schematic'
   const active = usePlantStore((s) => s.activeFacility)
+  const appView = usePlantStore((s) => s.appView)
 
   const fog = useMemo(() => {
     if (schematic) return new THREE.FogExp2('#03060d', 0.006)
@@ -180,7 +183,11 @@ export default function Scene() {
       <Suspense fallback={null}>
         {!schematic && <SceneEnv day={day} />}
         <Ground day={day} />
-        {active === 'infusion' ? (
+        {appView === 'hospital' ? (
+          <HospitalScene schematic={schematic} />
+        ) : appView === 'hospital-facility' ? (
+          <HospitalFacilityScene schematic={schematic} />
+        ) : active === 'infusion' ? (
           <InfusionScene schematic={schematic} />
         ) : active === 'mri' ? (
           <MRIScene schematic={schematic} />

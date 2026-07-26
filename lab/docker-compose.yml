@@ -1,0 +1,584 @@
+# 迷你虛擬醫院 Docker 靶場（MVP）
+# 依據：docs/PRD-迷你虛擬醫院Docker靶場.md
+# 僅限隔離實驗室；合成資料；不含 CALDERA
+
+name: medical-ais3
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # Runtime-only shared SSH key. A named volume avoids host bind-mount
+  # permissions and keeps the private key out of the repository/build context.
+  key-init:
+    build: ./hosts/vendor-entry
+    container_name: hosp-key-init
+    network_mode: "none"
+    volumes:
+      - lab-keys:/opt/hospital/keys
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ ! -s /opt/hospital/keys/id_ed25519 ]; then
+          ssh-keygen -q -t ed25519 -N "" -C "medical-ais3-lab-only" \
+            -f /opt/hospital/keys/id_ed25519
+        fi
+        chmod 600 /opt/hospital/keys/id_ed25519
+        chmod 644 /opt/hospital/keys/id_ed25519.pub
+    restart: "no"
+
+  # 統一入口：React/R3F 醫院總覽 + Go 設備數位孿生/API/WebSocket
+  medical-target:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: medical-ais3-target
+    hostname: medical-target
+    networks:
+      hosp-mgmt:
+        ipv4_address: 10.77.99.12
+    ports:
+      - "8100:8090"
+      - "1502:1502"
+      - "2576:2576"
+      - "11113:11113"
+    environment:
+      HTTP_PORT: "8090"
+      MODBUS_PORT: "1502"
+      HL7_PORT: "2576"
+      DICOM_PORT: "11113"
+      HOSPITAL_SCENE_URL: http://10.77.99.11:8100
+      HOSPITAL_RESET_URL: http://10.77.99.10:8099
+    depends_on:
+      lab-scene:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/api/config >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    logging: *default-logging
+
+  vendor-entry:
+    build: ./hosts/vendor-entry
+    container_name: hosp-vendor-entry
+    hostname: vendor-entry
+    networks:
+      hosp-dmz:
+        ipv4_address: 10.77.10.20
+      # V-02：刻意掛 clinical 以達 biomed-ws:22
+      hosp-clinical:
+        ipv4_address: 10.77.20.30
+    ports:
+      - "2221:22"
+    volumes:
+      - lab-keys:/opt/hospital/keys:ro
+    environment:
+      VENDOR_USER: ${VENDOR_USER:-vendor}
+      VENDOR_PASS: ${VENDOR_PASS:-Vendor@123}
+      BIOMED_HOST: 10.77.20.10
+    depends_on:
+      key-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "ss -ltn | grep -q ':22' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    logging: *default-logging
+
+  biomed-ws:
+    build:
+      context: .
+      dockerfile: hosts/biomed-ws/Dockerfile
+    container_name: hosp-biomed-ws
+    hostname: biomed-ws
+    networks:
+      hosp-clinical:
+        ipv4_address: 10.77.20.10
+      # V-10：可達多協議區（各網段使用該網段合法 IP）
+      hosp-integ:
+        ipv4_address: 10.77.30.30
+      hosp-imaging:
+        ipv4_address: 10.77.40.30
+      hosp-ot:
+        ipv4_address: 10.77.50.30
+    ports:
+      - "2222:22"
+    volumes:
+      - lab-keys:/opt/hospital/keys:ro
+    environment:
+      BIOMED_USER: ${BIOMED_USER:-biomed}
+      BIOMED_PASS: ${BIOMED_PASS:-Vendor@123}
+      FHIR_TEST_TOKEN: ${FHIR_TEST_TOKEN:-lab-fhir-token-overprivileged}
+      FHIR_SCOPED_TOKEN: ${FHIR_SCOPED_TOKEN:-lab-fhir-token-patient001}
+      DICOMWEB_TEST_TOKEN: ${DICOMWEB_TEST_TOKEN:-lab-dicomweb-token-overprivileged}
+      DICOMWEB_SCOPED_TOKEN: ${DICOMWEB_SCOPED_TOKEN:-lab-dicomweb-token-patient001}
+    depends_on:
+      key-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "ss -ltn | grep -q ':22' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    logging: *default-logging
+
+  # HAPI 僅掛管理網；臨床區必須經 fhir-gw（真 Bearer 授權，V-08）
+  ehr-fhir:
+    image: hapiproject/hapi:v7.4.0
+    container_name: hosp-ehr-fhir
+    hostname: ehr-fhir
+    networks:
+      hosp-mgmt:
+        ipv4_address: 10.77.99.20
+    expose:
+      - "8080"
+    environment:
+      spring.datasource.url: jdbc:h2:file:/tmp/hapi;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=FALSE
+      spring.datasource.username: sa
+      spring.datasource.password: ""
+      spring.datasource.driverClassName: org.h2.Driver
+      spring.jpa.properties.hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect
+      hapi.fhir.fhir_version: R4
+    healthcheck:
+      disable: true
+    logging: *default-logging
+
+  fhir-gw:
+    build: ./services/fhir-gw
+    container_name: hosp-fhir-gw
+    hostname: fhir-gw
+    networks:
+      hosp-clinical:
+        ipv4_address: 10.77.20.20
+      hosp-mgmt:
+        ipv4_address: 10.77.99.21
+    ports:
+      - "${FHIR_HOST_PORT:-8180}:8080"
+    environment:
+      UPSTREAM_FHIR: http://10.77.99.20:8080/fhir
+      FHIR_TEST_TOKEN: ${FHIR_TEST_TOKEN:-lab-fhir-token-overprivileged}
+      FHIR_SCOPED_TOKEN: ${FHIR_SCOPED_TOKEN:-lab-fhir-token-patient001}
+      FHIR_SCOPED_PATIENT: patient-001
+      HTTP_PORT: "8080"
+    depends_on:
+      - ehr-fhir
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    logging: *default-logging
+
+  hl7-engine:
+    build: ./services/hl7-engine
+    container_name: hosp-hl7-engine
+    hostname: hl7-engine
+    networks:
+      hosp-integ:
+        ipv4_address: 10.77.30.10
+      hosp-mgmt:
+        ipv4_address: 10.77.99.30
+    ports:
+      - "2575:2575"
+      - "8075:8075"
+    environment:
+      RIS_URL: http://10.77.30.20:8080
+      ALLOW_ANY_SOURCE: "true"
+      REJECT_DUPLICATE_MSH10: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket;s=socket.create_connection(('127.0.0.1',2575),2);s.close()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    depends_on:
+      ris-mwl:
+        condition: service_healthy
+    logging: *default-logging
+
+  ris-mwl:
+    build: ./services/ris-mwl
+    container_name: hosp-ris-mwl
+    hostname: ris-mwl
+    networks:
+      hosp-integ:
+        ipv4_address: 10.77.30.20
+      hosp-imaging:
+        ipv4_address: 10.77.40.25
+      hosp-mgmt:
+        ipv4_address: 10.77.99.31
+    ports:
+      - "11114:11114"
+      - "8085:8080"
+    environment:
+      AE_TITLE: ${RIS_AE_TITLE:-HOSP_RIS}
+      DICOM_PORT: "11114"
+    volumes:
+      - ris-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    logging: *default-logging
+
+  pacs:
+    build: ./services/pacs
+    container_name: hosp-pacs
+    hostname: pacs
+    networks:
+      hosp-imaging:
+        ipv4_address: 10.77.40.10
+      hosp-mgmt:
+        ipv4_address: 10.77.99.40
+    ports:
+      # HTTP 對外改由 pacs-gw:8042；此處僅保留 DIMSE
+      - "11112:11112"
+    expose:
+      - "8042"
+    volumes:
+      - pacs-data:/var/lib/orthanc/db
+    environment:
+      VERBOSE_ENABLED: "true"
+      # These UI/codec plugins are not required by the lab. Keep only the
+      # DICOMweb plugin enabled so a damaged optional layer cannot block PACS.
+      ORTHANC_EXPLORER_2_ENABLED: "false"
+      GDCM_PLUGIN_ENABLED: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      DICOMWEB_TEST_TOKEN: ${DICOMWEB_TEST_TOKEN:-lab-dicomweb-token-overprivileged}
+      DICOMWEB_SCOPED_TOKEN: ${DICOMWEB_SCOPED_TOKEN:-lab-dicomweb-token-patient001}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8042' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+  # Host:8042 → 真授權閘道（可依 query 做 patient scope；Orthanc Lua 看不到 query）
+  pacs-gw:
+    build: ./services/pacs-gw
+    container_name: hosp-pacs-gw
+    hostname: pacs-gw
+    networks:
+      hosp-imaging:
+        ipv4_address: 10.77.40.12
+      hosp-mgmt:
+        ipv4_address: 10.77.99.42
+    ports:
+      - "8042:8042"
+    environment:
+      UPSTREAM_PACS: http://10.77.40.10:8042
+      DICOMWEB_TEST_TOKEN: ${DICOMWEB_TEST_TOKEN:-lab-dicomweb-token-overprivileged}
+      DICOMWEB_SCOPED_TOKEN: ${DICOMWEB_SCOPED_TOKEN:-lab-dicomweb-token-patient001}
+      PACS_OVERPRIV_USER: overprivileged
+      PACS_SCOPED_USER: scoped
+      PACS_SCOPED_PATIENT: patient-001
+      HTTP_PORT: "8042"
+    depends_on:
+      pacs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8042/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    logging: *default-logging
+
+  mri-sim:
+    build: ./services/mri-sim
+    container_name: hosp-mri-sim
+    hostname: mri-sim
+    networks:
+      hosp-imaging:
+        ipv4_address: 10.77.40.20
+      hosp-ot:
+        ipv4_address: 10.77.50.25
+      hosp-integ:
+        ipv4_address: 10.77.30.25
+      hosp-mgmt:
+        ipv4_address: 10.77.99.41
+      hosp-clinical:
+        ipv4_address: 10.77.20.25
+    ports:
+      - "8090:8090"
+    environment:
+      BMS_URL: http://10.77.50.10:8091
+      RIS_MWL_HOST: 10.77.30.20
+      RIS_MWL_PORT: "11114"
+      RIS_AE: ${RIS_AE_TITLE:-HOSP_RIS}
+      PACS_HOST: 10.77.40.10
+      PACS_PORT: "11112"
+      PACS_AE: ${PACS_AE_TITLE:-HOSP_PACS}
+      MRI_AE: ${MRI_AE_TITLE:-HOSP_MRI}
+      FHIR_URL: http://10.77.20.20:8080/fhir
+      FHIR_TOKEN: ${FHIR_TEST_TOKEN:-lab-fhir-token-overprivileged}
+      POLL_INTERVAL: "3"
+    depends_on:
+      bms:
+        condition: service_healthy
+      pacs:
+        condition: service_healthy
+      ris-mwl:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    logging: *default-logging
+
+  bms:
+    build: ./services/bms
+    container_name: hosp-bms
+    hostname: bms
+    networks:
+      hosp-ot:
+        ipv4_address: 10.77.50.10
+      hosp-mgmt:
+        ipv4_address: 10.77.99.50
+    ports:
+      - "8091:8091"
+    environment:
+      CHILLER_URL: http://10.77.50.20:8092
+      ALLOW_ANY_WRITE: "true"
+    depends_on:
+      chiller-sim:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8091/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    logging: *default-logging
+
+  chiller-sim:
+    build: ./services/chiller-sim
+    container_name: hosp-chiller
+    hostname: chiller-sim
+    networks:
+      hosp-ot:
+        ipv4_address: 10.77.50.20
+      hosp-mgmt:
+        ipv4_address: 10.77.99.51
+    ports:
+      - "8092:8092"
+    environment:
+      DEVICE_ID: "42001"
+      BACNET_PORT: "47808"
+      BACNET_ADDRESS: 10.77.50.20/24
+      BACNET_NAME: HOSP-CHILLER
+      HTTP_PORT: "8092"
+      INITIAL_STATUS: NORMAL
+      ALLOW_ANY_WRITE: "true"
+      COOLING_BV_INSTANCE: "1"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8092/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    logging: *default-logging
+
+  protocol-runner:
+    build:
+      context: .
+      dockerfile: services/protocol-runner/Dockerfile
+    container_name: hosp-protocol-runner
+    hostname: protocol-runner
+    networks:
+      hosp-ot:
+        ipv4_address: 10.77.50.40
+      hosp-integ:
+        ipv4_address: 10.77.30.40
+      hosp-imaging:
+        ipv4_address: 10.77.40.40
+      hosp-clinical:
+        ipv4_address: 10.77.20.40
+    ports:
+      - "2223:22"
+      - "8093:8093"
+    environment:
+      SSH_USER: runner
+      SSH_PASS: Runner@123
+    healthcheck:
+      test: ["CMD-SHELL", "(ss -ltn | grep -q ':22' && ss -ltn | grep -q ':8093') || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    logging: *default-logging
+
+  lab-scene:
+    build: ./services/lab-scene
+    container_name: hosp-lab-scene
+    hostname: lab-scene
+    networks:
+      hosp-mgmt:
+        ipv4_address: 10.77.99.11
+      hosp-dmz:
+        ipv4_address: 10.77.10.11
+      hosp-clinical:
+        ipv4_address: 10.77.20.11
+      hosp-integ:
+        ipv4_address: 10.77.30.11
+      hosp-imaging:
+        ipv4_address: 10.77.40.11
+      hosp-ot:
+        ipv4_address: 10.77.50.11
+    expose:
+      - "8100"
+    environment:
+      MRI_URL: http://10.77.40.20:8090
+      BMS_URL: http://10.77.50.10:8091
+      CHILLER_URL: http://10.77.50.20:8092
+      HL7_API: http://10.77.30.10:8075
+      RIS_URL: http://10.77.30.20:8080
+      PACS_URL: http://10.77.40.12:8042
+      FHIR_URL: http://10.77.20.20:8080/fhir
+      FHIR_TOKEN: ${FHIR_TEST_TOKEN:-lab-fhir-token-overprivileged}
+      RESET_URL: http://10.77.99.10:8099
+      PACS_USER: overprivileged
+      PACS_PASS: ${DICOMWEB_TEST_TOKEN:-lab-dicomweb-token-overprivileged}
+      VENDOR_HOST: 10.77.10.20
+      BIOMED_HOST: 10.77.20.10
+      RUNNER_HOST: 10.77.50.40
+      RUNNER_STATUS_URL: http://10.77.50.40:8093
+      PROBE_TIMEOUT: "2.0"
+      PUBLIC_FHIR_URL: http://127.0.0.1:${FHIR_HOST_PORT:-8180}/fhir
+    depends_on:
+      - vendor-entry
+      - biomed-ws
+      - protocol-runner
+      - hl7-engine
+      - ris-mwl
+      - pacs
+      - pacs-gw
+      - fhir-gw
+      - ehr-fhir
+      - mri-sim
+      - bms
+      - chiller-sim
+      - reset-controller
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8100/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    logging: *default-logging
+
+  reset-controller:
+    build:
+      context: .
+      dockerfile: services/reset-controller/Dockerfile
+    container_name: hosp-reset
+    hostname: reset-controller
+    networks:
+      hosp-mgmt:
+        ipv4_address: 10.77.99.10
+      hosp-clinical:
+        ipv4_address: 10.77.20.99
+      hosp-integ:
+        ipv4_address: 10.77.30.99
+      hosp-imaging:
+        ipv4_address: 10.77.40.99
+      hosp-ot:
+        ipv4_address: 10.77.50.99
+    ports:
+      - "8099:8099"
+    environment:
+      SEED_VERSION: ${SEED_VERSION:-2026.07.25-mvp}
+      FHIR_URL: http://10.77.20.20:8080/fhir
+      FHIR_TOKEN: ${FHIR_TEST_TOKEN:-lab-fhir-token-overprivileged}
+      HL7_HOST: 10.77.30.10
+      HL7_PORT: "2575"
+      HL7_API: http://10.77.30.10:8075
+      RIS_URL: http://10.77.30.20:8080
+      PACS_URL: http://10.77.40.10:8042
+      PACS_USER: overprivileged
+      PACS_PASS: ${DICOMWEB_TEST_TOKEN:-lab-dicomweb-token-overprivileged}
+      MRI_URL: http://10.77.40.20:8090
+      BMS_URL: http://10.77.50.10:8091
+      CHILLER_URL: http://10.77.50.20:8092
+      SEED_DIR: /seed
+    depends_on:
+      hl7-engine:
+        condition: service_healthy
+      ris-mwl:
+        condition: service_healthy
+      pacs:
+        condition: service_healthy
+      fhir-gw:
+        condition: service_healthy
+      ehr-fhir:
+        condition: service_started
+      mri-sim:
+        condition: service_healthy
+      bms:
+        condition: service_healthy
+      chiller-sim:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8099/health',timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    logging: *default-logging
+
+networks:
+  hosp-dmz:
+    name: hosp-dmz
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.77.10.0/24
+  hosp-clinical:
+    name: hosp-clinical
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.77.20.0/24
+  hosp-integ:
+    name: hosp-integ
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.77.30.0/24
+  hosp-imaging:
+    name: hosp-imaging
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.77.40.0/24
+  hosp-ot:
+    name: hosp-ot
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.77.50.0/24
+  hosp-mgmt:
+    name: hosp-mgmt
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.77.99.0/24
+
+volumes:
+  lab-keys:
+  pacs-data:
+  ris-data:

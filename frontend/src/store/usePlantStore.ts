@@ -13,6 +13,8 @@ import {
   type ExplosionType,
   type FacilityMeta,
   type FacilityStatus,
+  type AppView,
+  type HospitalSnapshot,
   type PlantStatus,
   type SceneMode,
 } from '../types/telemetry'
@@ -42,6 +44,10 @@ interface PlantState {
   boom: BoomOverlay | null
   dayMode: boolean
   sceneMode: SceneMode
+  appView: AppView
+  hospitalSnapshot: HospitalSnapshot | null
+  hospitalConnected: boolean
+  selectedHospitalFacility: string | null
 
   // ── 多廠區平台 ──
   facilities: FacilityMeta[]
@@ -64,6 +70,10 @@ interface PlantState {
   toggleDay: () => void
   toggleScene: () => void
   setScene: (m: SceneMode) => void
+  setAppView: (view: AppView) => void
+  setHospitalSnapshot: (snapshot: HospitalSnapshot | null) => void
+  setHospitalConnected: (connected: boolean) => void
+  setSelectedHospitalFacility: (id: string | null) => void
 }
 
 function timeStr(): string {
@@ -82,6 +92,10 @@ export const usePlantStore = create<PlantState>((set, get) => ({
   boom: null,
   dayMode: true,
   sceneMode: 'realistic',
+  appView: 'hospital',
+  hospitalSnapshot: null,
+  hospitalConnected: false,
+  selectedHospitalFacility: 'mri-sim',
 
   facilities: [],
   activeFacility: 'infusion',
@@ -149,4 +163,15 @@ export const usePlantStore = create<PlantState>((set, get) => ({
   toggleDay: () => set((st) => ({ dayMode: !st.dayMode })),
   toggleScene: () => set((st) => ({ sceneMode: st.sceneMode === 'realistic' ? 'schematic' : 'realistic' })),
   setScene: (m) => set({ sceneMode: m }),
+  setAppView: (view) =>
+    set({
+      appView: view,
+      beacons: [],
+      explosions: [],
+      attackWarning: null,
+      boom: null,
+    }),
+  setHospitalSnapshot: (snapshot) => set({ hospitalSnapshot: snapshot }),
+  setHospitalConnected: (connected) => set({ hospitalConnected: connected }),
+  setSelectedHospitalFacility: (id) => set({ selectedHospitalFacility: id }),
 }))

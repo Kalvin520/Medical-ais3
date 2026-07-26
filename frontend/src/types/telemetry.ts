@@ -49,6 +49,48 @@ export interface BackendConfig {
   facilities?: FacilityMeta[]
 }
 
+// ── 迷你虛擬醫院場域 ──
+export type AppView = 'hospital' | 'hospital-facility' | 'device'
+
+export type HospitalLevel = 'ok' | 'alarm' | 'offline'
+
+export interface HospitalLink {
+  label: string
+  href: string
+}
+
+export interface HospitalFacility {
+  id: string
+  label: string
+  zone: string
+  ip: string
+  online: boolean
+  level: HospitalLevel
+  detail: Record<string, unknown>
+  links: HospitalLink[]
+}
+
+export interface HospitalSnapshot {
+  ok: boolean
+  summary: {
+    online: number
+    total: number
+    cooling: string | null
+    mri_status: string | null
+    alarms: number
+  }
+  facilities: HospitalFacility[]
+  active_attacks: HospitalAttackType[]
+  events: AlertItem[]
+  flows: {
+    clinical: string[]
+    cooling: string[]
+  }
+  links: Record<string, string>
+}
+
+export type HospitalAttackType = 'cooling' | 'hl7' | 'lateral' | 'all'
+
 // ── HUD 狀態物件 ──
 export interface AlertItem {
   id: number

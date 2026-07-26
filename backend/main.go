@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 	"med-target/simulator"
 	"med-target/websocket"
 )
+
+const maxProxyResponseBytes = 4 << 20
 
 // resolvePort 依優先順序決定監聽位址：1. 旗標  2. 環境變數  3. 預設。
 func resolvePort(portFlag, envName, def string) string {
@@ -91,6 +94,44 @@ func existsIndex(dir string) bool {
 	return !info.IsDir()
 }
 
+func proxyHospitalRequest(client *http.Client, target string, method string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method != method {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		upstreamTarget := target
+		if r.URL.RawQuery != "" {
+			separator := "?"
+			if strings.Contains(upstreamTarget, "?") {
+				separator = "&"
+			}
+			upstreamTarget += separator + r.URL.RawQuery
+		}
+
+		req, err := http.NewRequestWithContext(r.Context(), method, upstreamTarget, nil)
+		if err != nil {
+			http.Error(w, "invalid hospital service target", http.StatusInternalServerError)
+			return
+		}
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			http.Error(w, "hospital service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		defer resp.Body.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(resp.StatusCode)
+		_, _ = io.Copy(w, io.LimitReader(resp.Body, maxProxyResponseBytes))
+	}
+}
+
 func spaFileServer(staticDir string) http.HandlerFunc {
 	fileServer := http.FileServer(http.Dir(staticDir))
 
@@ -129,6 +170,11 @@ func main() {
 	hl7Addr := resolvePort(*hl7PortFlag, "HL7_PORT", "2575")
 	dicomAddr := resolvePort(*dicomPortFlag, "DICOM_PORT", "11112")
 	_, modbusPort, _ := net.SplitHostPort(modbusAddr)
+	hospitalSceneURL := strings.TrimRight(os.Getenv("HOSPITAL_SCENE_URL"), "/")
+	if hospitalSceneURL == "" {
+		hospitalSceneURL = "http://127.0.0.1:8101"
+	}
+	hospitalClient := &http.Client{Timeout: 90 * time.Second}
 
 	log.Println("醫療設備教學靶機 (AIS3 · 隔離環境專用) 啟動中...")
 
@@ -237,6 +283,25 @@ func main() {
 		})
 		w.Write(payload)
 	})
+
+	// 迷你虛擬醫院狀態聚合器與重置控制器。瀏覽器只連統一 Go 入口，
+	// 不直接接觸 Docker 內部管理網段或實驗用憑證。
+	mux.HandleFunc(
+		"/api/hospital/snapshot",
+		proxyHospitalRequest(hospitalClient, hospitalSceneURL+"/api/snapshot", http.MethodGet),
+	)
+	mux.HandleFunc(
+		"/api/hospital/health",
+		proxyHospitalRequest(hospitalClient, hospitalSceneURL+"/health", http.MethodGet),
+	)
+	mux.HandleFunc(
+		"/api/hospital/reset",
+		proxyHospitalRequest(hospitalClient, hospitalSceneURL+"/api/reset", http.MethodPost),
+	)
+	mux.HandleFunc(
+		"/api/hospital/attack",
+		proxyHospitalRequest(hospitalClient, hospitalSceneURL+"/api/attack", http.MethodPost),
+	)
 
 	staticDir := resolveStaticDir()
 	if staticDir != "" {
