@@ -1,0 +1,34 @@
+{
+  "Name": "HOSP_PACS",
+  "DicomAet": "HOSP_PACS",
+  "DicomPort": 11112,
+  "HttpPort": 8042,
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": true,
+  "RegisteredUsers": {
+    "overprivileged": "${DICOMWEB_TEST_TOKEN:-lab-dicomweb-token-overprivileged}",
+    "scoped": "${DICOMWEB_SCOPED_TOKEN:-lab-dicomweb-token-patient001}"
+  },
+  "LuaScripts": ["/etc/orthanc/orthanc.lua"],
+  "DicomAlwaysAllowEcho": true,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowFind": true,
+  "DicomAlwaysAllowGet": true,
+  "DicomAlwaysAllowMove": true,
+  "DicomCheckCalledAet": false,
+  "DicomCheckModalityHost": false,
+  "UnknownSopClassAccepted": true,
+  "StableAge": 3,
+  "OverwriteInstances": false,
+  "StorageCompression": false,
+  "Plugins": ["/usr/share/orthanc/plugins", "/usr/local/share/orthanc/plugins"],
+  "DicomWeb": {
+    "Enable": true,
+    "Root": "/dicom-web/",
+    "EnableWado": true,
+    "WadoRoot": "/wado",
+    "Ssl": false,
+    "StudiesMetadata": "Full",
+    "SeriesMetadata": "Full"
+  }
+}

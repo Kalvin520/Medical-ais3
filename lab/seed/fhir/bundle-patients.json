@@ -1,0 +1,57 @@
+{
+  "resourceType": "Bundle",
+  "id": "seed-patient-001",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-001",
+        "identifier": [
+          {
+            "system": "urn:hospital:mrn",
+            "value": "patient-001"
+          }
+        ],
+        "name": [
+          {
+            "family": "SYNTHETIC",
+            "given": ["PATIENT", "001"]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1980-01-01"
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/patient-001"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:patient-002",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-002",
+        "identifier": [
+          {
+            "system": "urn:hospital:mrn",
+            "value": "patient-002"
+          }
+        ],
+        "name": [
+          {
+            "family": "SYNTHETIC",
+            "given": ["PATIENT", "002"]
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1990-05-05"
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/patient-002"
+      }
+    }
+  ]
+}

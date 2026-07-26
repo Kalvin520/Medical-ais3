@@ -1,5 +1,5 @@
 // REST 呼叫 — 對應 Go 後端 /api/*（多廠區：以 facility 參數指定設施）
-import type { AttackType, BackendConfig } from '../types/telemetry'
+import type { AttackType, BackendConfig, HospitalSnapshot } from '../types/telemetry'
 
 export async function fetchConfig(): Promise<BackendConfig | null> {
   try {
@@ -26,6 +26,25 @@ export async function postAttack(type: AttackType, facility = 'infusion'): Promi
 export async function postReset(facility = 'infusion'): Promise<boolean> {
   try {
     const r = await fetch(`/api/reset?facility=${encodeURIComponent(facility)}`, { method: 'POST' })
+    return r.ok
+  } catch {
+    return false
+  }
+}
+
+export async function fetchHospitalSnapshot(): Promise<HospitalSnapshot | null> {
+  try {
+    const r = await fetch('/api/hospital/snapshot', { cache: 'no-store' })
+    if (!r.ok) return null
+    return (await r.json()) as HospitalSnapshot
+  } catch {
+    return null
+  }
+}
+
+export async function postHospitalReset(): Promise<boolean> {
+  try {
+    const r = await fetch('/api/hospital/reset', { method: 'POST' })
     return r.ok
   } catch {
     return false

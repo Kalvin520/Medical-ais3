@@ -1,0 +1,7 @@
+.env
+.DS_Store
+**/.DS_Store
+keys/*
+!keys/.gitkeep
+__pycache__/
+*.py[cod]

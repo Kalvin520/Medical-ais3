@@ -3,6 +3,7 @@ import Scene from './scene/Scene'
 import { Hud } from './hud/Hud'
 import { useWebSocket } from './net/useWebSocket'
 import { useTelemetryEffects } from './hooks/useTelemetryEffects'
+import { useHospitalTelemetry } from './hooks/useHospitalTelemetry'
 
 function Boot() {
   const [done, setDone] = useState(false)
@@ -27,6 +28,7 @@ function Boot() {
 export default function App() {
   useWebSocket()
   useTelemetryEffects()
+  useHospitalTelemetry()
 
   return (
     <>

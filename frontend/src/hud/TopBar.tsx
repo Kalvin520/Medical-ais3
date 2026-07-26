@@ -8,7 +8,9 @@ function FacilitySwitcher() {
   const [open, setOpen] = useState(false)
   const facilities = usePlantStore((s) => s.facilities)
   const active = usePlantStore((s) => s.activeFacility)
+  const appView = usePlantStore((s) => s.appView)
   const setActiveFacility = usePlantStore((s) => s.setActiveFacility)
+  const setAppView = usePlantStore((s) => s.setAppView)
 
   // 後端尚未回傳清單前，以前端註冊表排序為後備
   const list =
@@ -16,7 +18,9 @@ function FacilitySwitcher() {
       ? facilities
       : FACILITY_ORDER.map((id) => ({ id, name: getFacilityProfile(id).name, unitId: 0 }))
 
-  const cur = getFacilityProfile(active)
+  const cur = appView === 'hospital'
+    ? { name: '迷你虛擬醫院總覽', icon: 'building-2' }
+    : getFacilityProfile(active)
 
   return (
     <div className="facsel">
@@ -34,9 +38,10 @@ function FacilitySwitcher() {
               return (
                 <button
                   key={f.id}
-                  className={'facsel-item' + (f.id === active ? ' on' : '')}
+                  className={'facsel-item' + (appView === 'device' && f.id === active ? ' on' : '')}
                   onClick={() => {
                     setActiveFacility(f.id)
+                    setAppView('device')
                     setOpen(false)
                   }}
                   type="button"
@@ -46,6 +51,17 @@ function FacilitySwitcher() {
                 </button>
               )
             })}
+            <button
+              className={'facsel-item' + (appView === 'hospital' ? ' on' : '')}
+              onClick={() => {
+                setAppView('hospital')
+                setOpen(false)
+              }}
+              type="button"
+            >
+              <Icon name="building-2" size={15} />
+              <span className="facsel-item-name">迷你虛擬醫院總覽</span>
+            </button>
           </div>
         </>
       )}
@@ -56,16 +72,19 @@ function FacilitySwitcher() {
 export function TopBar() {
   const day = usePlantStore((s) => s.dayMode)
   const connected = usePlantStore((s) => s.connected)
+  const hospitalConnected = usePlantStore((s) => s.hospitalConnected)
+  const appView = usePlantStore((s) => s.appView)
   const toggleDay = usePlantStore((s) => s.toggleDay)
   const schematic = usePlantStore((s) => s.sceneMode) === 'schematic'
   const setScene = usePlantStore((s) => s.setScene)
+  const linkReady = appView === 'hospital' ? hospitalConnected : connected
 
   return (
     <div className="topbar">
       <div className="brand">
         <div>
-          <div>醫療設備靶機</div>
-          <div className="sub">MEDICAL DEVICE CYBER RANGE · MODBUS · HL7 · DICOM</div>
+          <div>醫療資安數位孿生靶場</div>
+          <div className="sub">VIRTUAL HOSPITAL · MODBUS · HL7 · DICOM · FHIR · BACNET</div>
         </div>
         <FacilitySwitcher />
       </div>
@@ -100,8 +119,8 @@ export function TopBar() {
           <Icon name={day ? 'sun' : 'moon'} size={15} /> {day ? '白天' : '夜間'}
         </button>
 
-        <div className={'conn' + (connected ? ' on' : '')}>
-          <span className="dot" /> {connected ? '已連線' : '連線中…'}
+        <div className={'conn' + (linkReady ? ' on' : '')}>
+          <span className="dot" /> {linkReady ? '已連線' : '連線中…'}
         </div>
       </div>
     </div>

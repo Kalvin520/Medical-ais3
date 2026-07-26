@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>迷你虛擬醫院 · 場景狀態</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=Sora:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/scene.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 36 36" width="36" height="36">
+          <path d="M18 2 L32 10 V26 L18 34 L4 26 V10 Z" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M18 10 V26 M12 18 H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <p class="brand">迷你虛擬醫院</p>
+        <p class="tagline">Isometric Lab Scene · Live Facility Monitor</p>
+      </div>
+    </div>
+    <div class="hud" id="liveChip">
+      <div class="hud-item">
+        <span class="hud-k">LINK</span>
+        <span class="hud-v" id="liveLink"><span class="pulse-dot"></span> LIVE</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-k">NODES</span>
+        <span class="hud-v mono" id="liveNodes">—/—</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-k">COOLING</span>
+        <span class="hud-v mono" id="liveCooling">—</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-k">MRI</span>
+        <span class="hud-v mono" id="liveMri">—</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="scene-frame">
+      <div class="frame-corner tl"></div>
+      <div class="frame-corner tr"></div>
+      <div class="frame-corner bl"></div>
+      <div class="frame-corner br"></div>
+      <svg id="scene" viewBox="0 0 1200 780" preserveAspectRatio="xMidYMid meet" role="img" aria-label="等角俯視虛擬醫院場景">
+        <defs>
+          <linearGradient id="floorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0d3540" />
+            <stop offset="45%" stop-color="#0a2832" />
+            <stop offset="100%" stop-color="#061820" />
+          </linearGradient>
+          <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#1a4a55" />
+            <stop offset="100%" stop-color="#041018" />
+          </linearGradient>
+          <linearGradient id="glassShine" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#b8f0ff" stop-opacity="0.55" />
+            <stop offset="40%" stop-color="#5ec8d8" stop-opacity="0.12" />
+            <stop offset="100%" stop-color="#0a3040" stop-opacity="0.05" />
+          </linearGradient>
+          <radialGradient id="spot" cx="50%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="#2a8a9a" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="#041018" stop-opacity="0" />
+          </radialGradient>
+          <pattern id="gridIso" width="56" height="28" patternUnits="userSpaceOnUse" patternTransform="skewX(-26.5)">
+            <path d="M0 28 H56 M0 0 V28" fill="none" stroke="rgba(120,210,220,0.07)" stroke-width="1"/>
+          </pattern>
+          <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3.5" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="shadowSoft" x="-40%" y="-20%" width="180%" height="160%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
+            <feOffset dy="8" result="off"/>
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.35"/>
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <filter id="bloom" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="5" result="b"/>
+            <feMerge>
+              <feMergeNode in="b"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <ellipse cx="600" cy="360" rx="520" ry="260" fill="url(#spot)" />
+        <polygon class="ground" points="600,70 1120,330 600,590 80,330" />
+        <polygon class="ground-grid" points="600,70 1120,330 600,590 80,330" fill="url(#gridIso)" />
+        <polygon class="ground-shade" points="600,590 1120,330 1120,368 600,628 80,368 80,330" />
+        <polygon class="ground-edge" points="1120,330 1120,368 600,628 600,590" fill="url(#edgeGrad)" opacity="0.85"/>
+        <polygon class="ground-edge" points="80,330 80,368 600,628 600,590" fill="#030a0e" opacity="0.7"/>
+
+        <g id="zones"></g>
+        <g id="pipes"></g>
+        <g id="buildings"></g>
+        <g id="packets"></g>
+        <g id="fx"></g>
+      </svg>
+    </div>
+
+    <div class="panel-backdrop" id="panelBackdrop" hidden></div>
+    <aside class="panel" id="panel" hidden>
+      <div class="panel-handle" aria-hidden="true"></div>
+      <div class="panel-accent"></div>
+      <button type="button" class="panel-close" id="panelClose" aria-label="關閉">
+        <span></span><span></span>
+      </button>
+      <p class="panel-zone" id="panelZone"></p>
+      <h2 id="panelTitle">設施</h2>
+      <div class="status-pill" id="panelStatus">—</div>
+      <dl class="panel-meta" id="panelMeta"></dl>
+      <p class="panel-links-title">快捷連結</p>
+      <div class="panel-links" id="panelLinks"></div>
+    </aside>
+  </main>
+
+  <footer class="legend">
+    <div class="legend-group">
+      <span><i class="lg ok"></i>正常運作</span>
+      <span><i class="lg alarm"></i>告警／停機</span>
+      <span><i class="lg offline"></i>離線</span>
+    </div>
+    <span class="hint">點選設施查看摘要與快捷連結</span>
+  </footer>
+
+  <script src="/static/scene.js"></script>
+</body>
+</html>
