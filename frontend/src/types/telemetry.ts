@@ -50,7 +50,7 @@ export interface BackendConfig {
 }
 
 // ── 迷你虛擬醫院場域 ──
-export type AppView = 'hospital' | 'device'
+export type AppView = 'hospital' | 'hospital-facility' | 'device'
 
 export type HospitalLevel = 'ok' | 'alarm' | 'offline'
 
@@ -77,14 +77,19 @@ export interface HospitalSnapshot {
     total: number
     cooling: string | null
     mri_status: string | null
+    alarms: number
   }
   facilities: HospitalFacility[]
+  active_attacks: HospitalAttackType[]
+  events: AlertItem[]
   flows: {
     clinical: string[]
     cooling: string[]
   }
   links: Record<string, string>
 }
+
+export type HospitalAttackType = 'cooling' | 'hl7' | 'lateral' | 'all'
 
 // ── HUD 狀態物件 ──
 export interface AlertItem {

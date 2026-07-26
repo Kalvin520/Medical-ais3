@@ -24,6 +24,7 @@ import { usePlantStore } from '../store/usePlantStore'
 
 import { GenericFacilityScene } from '../facilities/GenericFacilityScene'
 import { HospitalScene } from '../facilities/HospitalScene'
+import { HospitalFacilityScene } from '../facilities/HospitalFacilityScene'
 import { InfusionScene } from '../facilities/InfusionScene'
 import { MRIScene } from '../facilities/MRIScene'
 
@@ -184,6 +185,8 @@ export default function Scene() {
         <Ground day={day} />
         {appView === 'hospital' ? (
           <HospitalScene schematic={schematic} />
+        ) : appView === 'hospital-facility' ? (
+          <HospitalFacilityScene schematic={schematic} />
         ) : active === 'infusion' ? (
           <InfusionScene schematic={schematic} />
         ) : active === 'mri' ? (

@@ -11,6 +11,9 @@ function FacilitySwitcher() {
   const appView = usePlantStore((s) => s.appView)
   const setActiveFacility = usePlantStore((s) => s.setActiveFacility)
   const setAppView = usePlantStore((s) => s.setAppView)
+  const hospitalSnapshot = usePlantStore((s) => s.hospitalSnapshot)
+  const selectedHospitalFacility = usePlantStore((s) => s.selectedHospitalFacility)
+  const setSelectedHospitalFacility = usePlantStore((s) => s.setSelectedHospitalFacility)
 
   // 後端尚未回傳清單前，以前端註冊表排序為後備
   const list =
@@ -18,9 +21,24 @@ function FacilitySwitcher() {
       ? facilities
       : FACILITY_ORDER.map((id) => ({ id, name: getFacilityProfile(id).name, unitId: 0 }))
 
+  const hospitalFacilities = [
+    { id: 'vendor-entry', name: '廠商安全入口', icon: 'shield-check' },
+    { id: 'biomed-ws', name: '醫療工程工作站', icon: 'monitor' },
+    { id: 'ehr-fhir', name: 'EHR / FHIR 資料中心', icon: 'database' },
+    { id: 'hl7-engine', name: 'HL7 整合引擎', icon: 'network' },
+    { id: 'ris-mwl', name: 'RIS / MWL 排程中心', icon: 'calendar' },
+    { id: 'pacs', name: 'PACS 影像儲存中心', icon: 'hard-drive' },
+    { id: 'protocol-runner', name: '協議工具箱', icon: 'terminal' },
+    { id: 'bms', name: 'BMS 設施監控中心', icon: 'factory' },
+    { id: 'chiller-sim', name: 'MRI 冷卻機房', icon: 'snowflake' },
+  ].filter((item) => hospitalSnapshot?.facilities.some((facility) => facility.id === item.id) ?? true)
+
+  const selectedHospitalMeta = hospitalFacilities.find((item) => item.id === selectedHospitalFacility)
   const cur = appView === 'hospital'
     ? { name: '迷你虛擬醫院總覽', icon: 'building-2' }
-    : getFacilityProfile(active)
+    : appView === 'hospital-facility'
+      ? selectedHospitalMeta ?? { name: '醫院設備場域', icon: 'factory' }
+      : getFacilityProfile(active)
 
   return (
     <div className="facsel">
@@ -51,6 +69,7 @@ function FacilitySwitcher() {
                 </button>
               )
             })}
+            <div className="facsel-section-label">OVERVIEW</div>
             <button
               className={'facsel-item' + (appView === 'hospital' ? ' on' : '')}
               onClick={() => {
@@ -62,6 +81,22 @@ function FacilitySwitcher() {
               <Icon name="building-2" size={15} />
               <span className="facsel-item-name">迷你虛擬醫院總覽</span>
             </button>
+            <div className="facsel-section-label">VIRTUAL HOSPITAL DEVICES</div>
+            {hospitalFacilities.map((facility) => (
+              <button
+                key={facility.id}
+                className={'facsel-item' + (appView === 'hospital-facility' && selectedHospitalFacility === facility.id ? ' on' : '')}
+                onClick={() => {
+                  setSelectedHospitalFacility(facility.id)
+                  setAppView('hospital-facility')
+                  setOpen(false)
+                }}
+                type="button"
+              >
+                <Icon name={facility.icon} size={15} />
+                <span className="facsel-item-name">{facility.name}</span>
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -77,7 +112,9 @@ export function TopBar() {
   const toggleDay = usePlantStore((s) => s.toggleDay)
   const schematic = usePlantStore((s) => s.sceneMode) === 'schematic'
   const setScene = usePlantStore((s) => s.setScene)
-  const linkReady = appView === 'hospital' ? hospitalConnected : connected
+  const linkReady = appView === 'hospital' || appView === 'hospital-facility'
+    ? hospitalConnected
+    : connected
 
   return (
     <div className="topbar">

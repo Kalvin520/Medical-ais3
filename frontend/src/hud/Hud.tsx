@@ -6,6 +6,7 @@ import { CoilPanel } from './CoilPanel'
 import { AlertsPanel } from './AlertsPanel'
 import { AttackPanel } from './AttackPanel'
 import { HospitalHud } from './HospitalHud'
+import { HospitalFacilityHud } from './HospitalFacilityHud'
 import { usePlantStore } from '../store/usePlantStore'
 
 export function Hud() {
@@ -17,6 +18,8 @@ export function Hud() {
 
       {appView === 'hospital' ? (
         <HospitalHud />
+      ) : appView === 'hospital-facility' ? (
+        <HospitalFacilityHud />
       ) : (
         <>
           <div className="rail left">

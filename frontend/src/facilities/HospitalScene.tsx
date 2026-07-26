@@ -11,21 +11,20 @@ interface NodeMeta {
   zone: string
   position: [number, number, number]
   size: [number, number, number]
-  kind?: 'mri' | 'chiller' | 'gateway'
+  kind: 'gateway' | 'workstation' | 'data' | 'hl7' | 'ris' | 'mri' | 'pacs' | 'runner' | 'bms' | 'chiller'
 }
 
 const NODES: NodeMeta[] = [
   { id: 'vendor-entry', label: '廠商入口', zone: 'DMZ', position: [-43, 2.8, -27], size: [12, 5.6, 10], kind: 'gateway' },
-  { id: 'biomed-ws', label: '醫工工作站', zone: '臨床區', position: [-21, 3.5, -20], size: [12, 7, 10] },
-  { id: 'ehr-fhir', label: 'EHR / FHIR', zone: '臨床區', position: [0, 4, -26], size: [13, 8, 10] },
-  { id: 'hl7-engine', label: 'HL7 Engine', zone: '整合區', position: [-24, 4, 2], size: [13, 8, 10] },
-  { id: 'ris-mwl', label: 'RIS / MWL', zone: '整合區', position: [-4, 4, 4], size: [13, 8, 10] },
+  { id: 'biomed-ws', label: '醫工工作站', zone: '臨床區', position: [-21, 3.5, -20], size: [12, 7, 10], kind: 'workstation' },
+  { id: 'ehr-fhir', label: 'EHR / FHIR', zone: '臨床區', position: [0, 4, -26], size: [13, 8, 10], kind: 'data' },
+  { id: 'hl7-engine', label: 'HL7 Engine', zone: '整合區', position: [-24, 4, 2], size: [13, 8, 10], kind: 'hl7' },
+  { id: 'ris-mwl', label: 'RIS / MWL', zone: '整合區', position: [-4, 4, 4], size: [13, 8, 10], kind: 'ris' },
   { id: 'mri-sim', label: 'MRI Simulator', zone: '影像區', position: [23, 4.5, -4], size: [16, 9, 13], kind: 'mri' },
-  { id: 'pacs', label: 'PACS / Orthanc', zone: '影像區', position: [47, 5, -10], size: [14, 10, 11] },
-  { id: 'protocol-runner', label: 'Protocol Runner', zone: 'OT 區', position: [-10, 4, 29], size: [14, 8, 10] },
-  { id: 'bms', label: 'BMS', zone: 'OT 區', position: [15, 4, 27], size: [12, 8, 10] },
+  { id: 'pacs', label: 'PACS / Orthanc', zone: '影像區', position: [47, 5, -10], size: [14, 10, 11], kind: 'pacs' },
+  { id: 'protocol-runner', label: 'Protocol Runner', zone: 'OT 區', position: [-10, 4, 29], size: [14, 8, 10], kind: 'runner' },
+  { id: 'bms', label: 'BMS', zone: 'OT 區', position: [15, 4, 27], size: [12, 8, 10], kind: 'bms' },
   { id: 'chiller-sim', label: 'Chiller / BACnet', zone: 'OT 區', position: [39, 3.5, 27], size: [15, 7, 11], kind: 'chiller' },
-  { id: 'reset-controller', label: 'Reset Controller', zone: '管理區', position: [-39, 3.5, 27], size: [13, 7, 10] },
 ]
 
 const NODE_MAP = Object.fromEntries(NODES.map((node) => [node.id, node]))
@@ -61,6 +60,129 @@ function ZonePad({
   )
 }
 
+function AlarmPulse({ radius }: { radius: number }) {
+  const ref = useRef<THREE.Mesh>(null)
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    const phase = (clock.elapsedTime * 0.85) % 1
+    ref.current.scale.setScalar(0.75 + phase * 0.75)
+    const material = ref.current.material as THREE.MeshBasicMaterial
+    material.opacity = (1 - phase) * 0.55
+  })
+
+  return (
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.4, 0]}>
+      <ringGeometry args={[radius, radius + 0.55, 48]} />
+      <meshBasicMaterial color="#fb4268" transparent opacity={0.5} depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
+function MiniModel({
+  meta,
+  schematic,
+  selected,
+  statusColor,
+}: {
+  meta: NodeMeta
+  schematic: boolean
+  selected: boolean
+  statusColor: string
+}) {
+  const body = selected ? '#b9efff' : schematic ? '#0b2740' : '#cad8df'
+  const material = <meshStandardMaterial color={body} emissive={statusColor} emissiveIntensity={schematic ? 0.28 : 0.06} roughness={0.42} metalness={0.32} />
+  const glow = <meshStandardMaterial color={statusColor} emissive={statusColor} emissiveIntensity={1.8} toneMapped={false} />
+
+  if (meta.kind === 'gateway') {
+    return (
+      <group>
+        {[-4, 4].map((x) => <mesh key={x} position={[x, 0, 0]} castShadow><boxGeometry args={[2, 7, 3]} />{material}</mesh>)}
+        <mesh position={[0, 3, 0]} castShadow><boxGeometry args={[8, 1.3, 3]} />{material}</mesh>
+        <mesh position={[0, 0, 1.7]}><boxGeometry args={[5.4, 3.8, 0.35]} />{glow}</mesh>
+      </group>
+    )
+  }
+  if (meta.kind === 'workstation') {
+    return (
+      <group>
+        <mesh position={[0, -1.8, 0]} castShadow><boxGeometry args={[11, 1, 6]} />{material}</mesh>
+        {[-3, 3].map((x) => (
+          <group key={x} position={[x, 1.4, -1]}>
+            <mesh castShadow><boxGeometry args={[4.4, 3.2, 0.7]} />{material}</mesh>
+            <mesh position={[0, 0, 0.38]}><planeGeometry args={[3.7, 2.5]} />{glow}</mesh>
+          </group>
+        ))}
+      </group>
+    )
+  }
+  if (meta.kind === 'data' || meta.kind === 'pacs') {
+    return (
+      <group>
+        {[-4, 0, 4].map((x) => (
+          <group key={x} position={[x, 0, 0]}>
+            <mesh castShadow><boxGeometry args={[3.2, meta.size[1], 5]} />{material}</mesh>
+            {[-2.2, -0.8, 0.6, 2].map((y) => <mesh key={y} position={[0, y, 2.55]}><boxGeometry args={[2.5, 0.45, 0.2]} />{glow}</mesh>)}
+          </group>
+        ))}
+      </group>
+    )
+  }
+  if (meta.kind === 'hl7') {
+    return (
+      <group>
+        <mesh castShadow><cylinderGeometry args={[4.2, 5.4, 8, 28]} />{material}</mesh>
+        {[-2.6, 0, 2.6].map((y) => <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[4.7, 0.22, 10, 40]} />{glow}</mesh>)}
+      </group>
+    )
+  }
+  if (meta.kind === 'ris') {
+    return (
+      <group>
+        <mesh position={[0, -1.7, 0]} castShadow><cylinderGeometry args={[6, 7, 2.2, 8]} />{material}</mesh>
+        {[-4, 0, 4].map((x) => <mesh key={x} position={[x, 1.2, -1]} rotation={[-0.15, 0, 0]}><boxGeometry args={[3.6, 3, 0.5]} />{glow}</mesh>)}
+      </group>
+    )
+  }
+  if (meta.kind === 'mri') {
+    return (
+      <group>
+        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow><torusGeometry args={[3.3, 1.65, 18, 40]} />{material}</mesh>
+        <mesh position={[0, -2.3, 2]} castShadow><boxGeometry args={[4.4, 0.8, 8]} />{material}</mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.2, 0.22, 12, 40]} />{glow}</mesh>
+      </group>
+    )
+  }
+  if (meta.kind === 'runner') {
+    return (
+      <group>
+        <mesh position={[0, -1.7, 0]} castShadow><boxGeometry args={[12, 1.2, 6]} />{material}</mesh>
+        {[-4, 0, 4].map((x) => <mesh key={x} position={[x, 1.2, -1]}><boxGeometry args={[3.4, 3, 0.5]} />{glow}</mesh>)}
+        <mesh position={[0, 2.5, 2]}><torusGeometry args={[1.6, 0.2, 10, 32]} />{glow}</mesh>
+      </group>
+    )
+  }
+  if (meta.kind === 'bms') {
+    return (
+      <group>
+        <mesh position={[0, 1, -1.5]} castShadow><boxGeometry args={[11, 6, 2]} />{material}</mesh>
+        {[-3, 3].map((x) => <mesh key={x} position={[x, 1, -0.4]}><torusGeometry args={[1.6, 0.28, 10, 32]} />{glow}</mesh>)}
+        <mesh position={[0, -2.3, 2]} castShadow><boxGeometry args={[9, 1.4, 5]} />{material}</mesh>
+      </group>
+    )
+  }
+  return (
+    <group>
+      {[-3.8, 3.8].map((x) => (
+        <group key={x} position={[x, 0, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]} castShadow><cylinderGeometry args={[2.7, 2.7, 6.5, 28]} />{material}</mesh>
+          <mesh position={[0, 2.8, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.5, 0.2, 10, 32]} />{glow}</mesh>
+        </group>
+      ))}
+    </group>
+  )
+}
+
 function HospitalNode({
   meta,
   facility,
@@ -75,7 +197,6 @@ function HospitalNode({
   const setSelected = usePlantStore((s) => s.setSelectedHospitalFacility)
   const level = statusFor(facility)
   const statusColor = STATUS_COLOR[level]
-  const bodyColor = schematic ? '#0b2740' : '#d8e2ea'
 
   return (
     <group
@@ -91,44 +212,12 @@ function HospitalNode({
         document.body.style.cursor = 'default'
       }}
     >
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={meta.size} />
-        <meshStandardMaterial
-          color={selected ? '#b9efff' : bodyColor}
-          emissive={statusColor}
-          emissiveIntensity={schematic ? 0.25 : selected ? 0.16 : 0.04}
-          roughness={0.45}
-          metalness={0.18}
-        />
-      </mesh>
+      <MiniModel meta={meta} schematic={schematic} selected={selected} statusColor={statusColor} />
 
-      <mesh position={[0, meta.size[1] / 2 + 0.25, 0]}>
-        <boxGeometry args={[meta.size[0] * 0.84, 0.45, meta.size[2] * 0.84]} />
-        <meshStandardMaterial color={statusColor} emissive={statusColor} emissiveIntensity={1.8} />
+      <mesh position={[0, meta.size[1] / 2 + 0.7, 0]}>
+        <sphereGeometry args={[0.42, 14, 14]} />
+        <meshStandardMaterial color={statusColor} emissive={statusColor} emissiveIntensity={2.2} toneMapped={false} />
       </mesh>
-
-      {meta.kind === 'mri' && (
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.4, meta.size[2] / 2 + 0.6]} castShadow>
-          <torusGeometry args={[2.5, 1.15, 16, 36]} />
-          <meshStandardMaterial color="#edf8ff" emissive="#38bdf8" emissiveIntensity={0.18} />
-        </mesh>
-      )}
-      {meta.kind === 'chiller' && (
-        <>
-          {[-3.5, 0, 3.5].map((x) => (
-            <mesh key={x} position={[x, meta.size[1] / 2 + 1, 0]} castShadow>
-              <cylinderGeometry args={[1.15, 1.15, 1.8, 20]} />
-              <meshStandardMaterial color="#9ecbd2" metalness={0.4} roughness={0.35} />
-            </mesh>
-          ))}
-        </>
-      )}
-      {meta.kind === 'gateway' && (
-        <mesh position={[0, 0, meta.size[2] / 2 + 0.7]}>
-          <boxGeometry args={[meta.size[0] * 0.48, meta.size[1] * 0.58, 1.4]} />
-          <meshStandardMaterial color="#172638" emissive="#38bdf8" emissiveIntensity={0.22} />
-        </mesh>
-      )}
 
       <pointLight
         position={[0, meta.size[1] / 2 + 2, 0]}
@@ -136,6 +225,7 @@ function HospitalNode({
         intensity={selected ? 25 : level === 'alarm' ? 18 : 8}
         distance={18}
       />
+      {level === 'alarm' && <AlarmPulse radius={Math.max(meta.size[0], meta.size[2]) * 0.52} />}
 
       <Html center position={[0, meta.size[1] / 2 + 3.6, 0]} distanceFactor={70} occlude={false}>
         <button
@@ -181,7 +271,17 @@ function Packet({
   )
 }
 
-function Flow({ ids, color, dashed = false }: { ids: string[]; color: string; dashed?: boolean }) {
+function Flow({
+  ids,
+  color,
+  dashed = false,
+  active = false,
+}: {
+  ids: string[]
+  color: string
+  dashed?: boolean
+  active?: boolean
+}) {
   const points = ids
     .map((id) => NODE_MAP[id])
     .filter(Boolean)
@@ -191,16 +291,22 @@ function Flow({ ids, color, dashed = false }: { ids: string[]; color: string; da
     <>
       <Line
         points={points}
-        color={color}
-        lineWidth={dashed ? 1 : 1.6}
+        color={active ? '#fb4268' : color}
+        lineWidth={active ? 2.6 : dashed ? 1 : 1.6}
         transparent
-        opacity={dashed ? 0.42 : 0.68}
-        dashed={dashed}
+        opacity={active ? 0.92 : dashed ? 0.42 : 0.68}
+        dashed={dashed && !active}
         dashSize={2}
         gapSize={1.3}
       />
-      {!dashed && [0, 0.33, 0.66].map((offset) => (
-        <Packet key={offset} points={points} color={color} speed={0.07} offset={offset} />
+      {(!dashed || active) && [0, 0.33, 0.66].map((offset) => (
+        <Packet
+          key={offset}
+          points={points}
+          color={active ? '#fb4268' : color}
+          speed={active ? 0.16 : 0.07}
+          offset={offset}
+        />
       ))}
     </>
   )
@@ -213,6 +319,7 @@ export function HospitalScene({ schematic }: { schematic: boolean }) {
     () => Object.fromEntries((snapshot?.facilities ?? []).map((facility) => [facility.id, facility])),
     [snapshot],
   )
+  const activeAttacks = snapshot?.active_attacks ?? []
 
   return (
     <group>
@@ -221,11 +328,9 @@ export function HospitalScene({ schematic }: { schematic: boolean }) {
       <ZonePad position={[-14, 0.28, 4]} size={[37, 20]} color={schematic ? '#102b4e' : '#9fb0c6'} />
       <ZonePad position={[34, 0.28, -5]} size={[42, 26]} color={schematic ? '#123444' : '#a9c0c8'} />
       <ZonePad position={[16, 0.28, 28]} size={[65, 22]} color={schematic ? '#132942' : '#aab6c6'} />
-      <ZonePad position={[-39, 0.28, 27]} size={[22, 18]} color={schematic ? '#23304b' : '#b0b5c2'} />
-
-      <Flow ids={CLINICAL_FLOW} color="#38bdf8" />
-      <Flow ids={COOLING_FLOW} color="#34d399" />
-      <Flow ids={ATTACK_FLOW} color="#fbbf24" dashed />
+      <Flow ids={CLINICAL_FLOW} color="#38bdf8" active={activeAttacks.includes('hl7')} />
+      <Flow ids={COOLING_FLOW} color="#34d399" active={activeAttacks.includes('cooling')} />
+      <Flow ids={ATTACK_FLOW} color="#fbbf24" dashed active={activeAttacks.includes('lateral')} />
 
       {NODES.map((meta) => (
         <HospitalNode

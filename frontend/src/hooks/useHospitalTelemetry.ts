@@ -15,7 +15,19 @@ export function useHospitalTelemetry() {
 
       const store = usePlantStore.getState()
       store.setHospitalConnected(Boolean(snapshot?.ok))
-      if (snapshot) store.setHospitalSnapshot(snapshot)
+      if (snapshot) {
+        const facilities = snapshot.facilities.filter((facility) => facility.id !== 'reset-controller')
+        store.setHospitalSnapshot({
+          ...snapshot,
+          facilities,
+          summary: {
+            ...snapshot.summary,
+            online: facilities.filter((facility) => facility.online).length,
+            total: facilities.length,
+            alarms: facilities.filter((facility) => facility.level === 'alarm').length,
+          },
+        })
+      }
 
       timer = window.setTimeout(poll, POLL_INTERVAL_MS)
     }
