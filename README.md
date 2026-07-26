@@ -40,19 +40,18 @@ Browser :8100
 
 需求：
 
-- Docker Desktop 27+ 與 Docker Compose v2
+- Docker Desktop 27+ 與 Docker Compose 2.20+
 
 ```bash
-cd lab
+# Clone 後進入專案根目錄
+git clone https://github.com/Kalvin520/Medical-ais3.git
+cd Medical-ais3
 
-# 建立 gitignored 的 lab/.env
-./scripts/init-lab.sh
-
-# 建置並啟動完整場域
-docker compose up -d --build
+# 第一次會自動下載基礎映像並建置完整場域
+docker compose up -d
 
 # 等健康檢查完成後驗證醫院服務與攻擊鏈前置條件
-./scripts/smoke-test.sh
+./lab/scripts/smoke-test.sh
 ```
 
 開啟：
@@ -64,7 +63,6 @@ http://127.0.0.1:8100
 停止環境：
 
 ```bash
-cd lab
 docker compose down
 ```
 
@@ -73,6 +71,16 @@ docker compose down
 ```bash
 docker compose down -v
 ```
+
+修改程式後需要強制重建時：
+
+```bash
+docker compose up -d --build
+```
+
+根目錄的 `docker-compose.yml` 是可攜式一鍵入口，會載入 `lab/docker-compose.yml`
+中的完整 16 服務醫院拓撲。所有變數都有隔離靶場預設值；若要自訂，可先執行
+`cp .env.example .env`，且不要把產生的 `.env` 提交到 Git。
 
 ## 對外 Port
 

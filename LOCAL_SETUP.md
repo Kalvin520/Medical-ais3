@@ -16,7 +16,7 @@
 
 - macOS、Linux 或 Windows + WSL2
 - Docker Desktop 27 或更新版本
-- Docker Compose v2
+- Docker Compose 2.20 或更新版本
 - Git
 - 建議至少 8 GB RAM
 
@@ -62,14 +62,22 @@ go version
 在 Terminal 執行：
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
 
-# 建立不會提交到 Git 的 lab/.env
-./scripts/init-lab.sh
-
-# 建置並啟動完整靶場
-docker compose up -d --build
+# 第一次會自動下載基礎映像並建置完整靶場
+docker compose up -d
 ```
+
+根目錄的 `docker-compose.yml` 會載入 `lab/docker-compose.yml` 中的全部服務。
+所有設定都有隔離靶場預設值，因此不需要先建立 `.env`。
+
+若要自訂本機設定：
+
+```bash
+cp .env.example .env
+```
+
+`.env` 已被 Git 忽略，不要把真實密碼或 Token 提交到 GitHub。
 
 等待容器健康檢查完成：
 
@@ -92,8 +100,8 @@ open http://127.0.0.1:8100
 ### 驗證靶場
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
-./scripts/smoke-test.sh
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
+./lab/scripts/smoke-test.sh
 ```
 
 ### 查看執行紀錄
@@ -121,7 +129,7 @@ docker compose logs -f
 ### 修改程式後重新建置
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
 docker compose up -d --build medical-target
 ```
 
@@ -134,7 +142,7 @@ docker compose up -d --build
 ### 停止完整靶場
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
 docker compose down
 ```
 
@@ -249,7 +257,7 @@ bind: address already in use
 要改用本機 frontend + backend 模式前，先停止 Docker：
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
 docker compose down
 ```
 
@@ -293,7 +301,7 @@ lsof -nP -iTCP:2575 -sTCP:LISTEN
 如果是本專案先前啟動的 Docker 容器：
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
 docker compose down
 ```
 
@@ -321,7 +329,7 @@ go test ./...
 ### Docker Compose
 
 ```bash
-cd /Users/kalvin/Desktop/Project/medical-target-ais3/lab
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
 docker compose config --quiet
 ```
 

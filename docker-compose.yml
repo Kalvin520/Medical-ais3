@@ -1,0 +1,13 @@
+# Medical AIS3 portable launcher
+#
+# Clone the repository, enter the project directory, then run:
+#   docker compose up -d
+#
+# Docker Compose 2.20+ resolves all paths in the included file relative to
+# lab/docker-compose.yml, so the complete multi-container hospital can stay
+# organized under lab/ while this file remains the single root entry point.
+
+name: medical-ais3
+
+include:
+  - path: ./lab/docker-compose.yml
