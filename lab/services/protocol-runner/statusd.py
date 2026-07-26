@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 
 MARKER = Path("/opt/hospital/PARALYZED")
+BIN_DIR = Path("/opt/hospital/bin")
+BACKUP_DIR = Path("/opt/hospital/bin.paralyzed.bak")
 TOOLS = ("hl7-send", "dicom-test-store", "bacnet-write")
 PORT = int(os.getenv("STATUS_PORT", "8093"))
 
@@ -38,6 +42,28 @@ def snapshot() -> dict:
     }
 
 
+def restore() -> dict:
+    """Recovery-only endpoint for older lab states; no attack endpoint is exposed."""
+    if BACKUP_DIR.exists():
+        if BIN_DIR.exists():
+            shutil.rmtree(BIN_DIR)
+        shutil.copytree(BACKUP_DIR, BIN_DIR, symlinks=True)
+        shutil.rmtree(BACKUP_DIR)
+    MARKER.unlink(missing_ok=True)
+    targets = {
+        "hl7-send": BIN_DIR / "hl7_send.py",
+        "bacnet-write": BIN_DIR / "bacnet_write.py",
+        "dicom-test-store": BIN_DIR / "dicom_test_store.py",
+    }
+    for name, target in targets.items():
+        link = Path("/usr/local/bin") / name
+        if link.is_symlink() or link.exists():
+            link.unlink()
+        if target.exists():
+            link.symlink_to(target)
+    return snapshot()
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:  # quiet
         return
@@ -51,9 +77,21 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path in ("/", "/health", "/status"):
+        path = urlparse(self.path).path
+        if path in ("/", "/health", "/status"):
             data = snapshot()
-            self._send(200, data if self.path != "/health" else {"ok": True, "status": data["status"]})
+            self._send(200, data if path != "/health" else {"ok": True, "status": data["status"]})
+            return
+        self._send(404, {"ok": False, "error": "not found"})
+
+    def do_POST(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        try:
+            if path == "/reset":
+                self._send(200, {"ok": True, **restore()})
+                return
+        except OSError as exc:
+            self._send(500, {"ok": False, "error": str(exc)})
             return
         self._send(404, {"ok": False, "error": "not found"})
 

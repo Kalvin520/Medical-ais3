@@ -6,12 +6,15 @@ import base64
 import logging
 import os
 import socket
+import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -51,12 +54,45 @@ PUBLIC = {
     "bms_docs": "http://127.0.0.1:8091/docs",
     "chiller_status": "http://127.0.0.1:8092/status",
     "chiller_docs": "http://127.0.0.1:8092/docs",
-    "reset_health": "http://127.0.0.1:8099/health",
-    "reset_docs": "http://127.0.0.1:8099/docs",
 }
 
 app = FastAPI(title="hosp-lab-scene", version="1.0.0")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+ATTACK_TYPES = {
+    "cooling": ("BACnet 冷卻告警已注入，MRI 聯鎖保護啟動", "snowflake"),
+    "hl7": ("HL7 錯配醫囑已送入 RIS Worklist", "file-warning"),
+    "lateral": ("Vendor → Biomed SSH 橫向路徑已建立；協議工具箱保持可用", "waypoints"),
+}
+_state_lock = threading.Lock()
+_event_seq = 0
+_active_attacks: set[str] = set()
+_events: list[dict[str, Any]] = []
+
+
+def add_event(message: str, level: int = 1, icon: str = "check") -> None:
+    global _event_seq
+    with _state_lock:
+        _event_seq += 1
+        _events.insert(
+            0,
+            {
+                "id": _event_seq,
+                "time": datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S"),
+                "message": message,
+                "level": level,
+                "icon": icon,
+            },
+        )
+        del _events[12:]
+
+
+def state_snapshot() -> tuple[list[str], list[dict[str, Any]]]:
+    with _state_lock:
+        return sorted(_active_attacks), [dict(event) for event in _events]
+
+
+add_event("迷你虛擬醫院遙測聚合器已啟動", 1, "power")
 
 
 def tcp_open(host: str, port: int, timeout: float = HTTP_TIMEOUT) -> bool:
@@ -83,6 +119,20 @@ async def get_json(
     except Exception as exc:  # noqa: BLE001
         logger.debug("probe fail %s: %s", url, exc)
         return False, None
+
+
+async def post_json(
+    client: httpx.AsyncClient,
+    url: str,
+    payload: dict[str, Any] | None = None,
+) -> tuple[bool, Any]:
+    try:
+        r = await client.post(url, json=payload)
+        data = r.json() if r.text else {}
+        return r.is_success and bool(data.get("ok", True)), data
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("action fail %s: %s", url, exc)
+        return False, {"error": str(exc)}
 
 
 async def probe_ssh(id_: str, label: str, zone: str, host: str, ip: str) -> dict[str, Any]:
@@ -328,30 +378,6 @@ async def probe_fhir(client: httpx.AsyncClient) -> dict[str, Any]:
     }
 
 
-async def probe_reset(client: httpx.AsyncClient) -> dict[str, Any]:
-    ok_h, health = await get_json(client, f"{RESET_URL}/health")
-    ok_s, seed = await get_json(client, f"{RESET_URL}/seed-version")
-    ok = ok_h or ok_s
-    version = None
-    if ok_s and isinstance(seed, dict):
-        version = seed.get("seed_version")
-    elif ok_h and isinstance(health, dict):
-        version = health.get("seed_version")
-    return {
-        "id": "reset-controller",
-        "label": "Reset 控制器",
-        "zone": "mgmt",
-        "ip": "10.77.99.10",
-        "online": ok,
-        "level": "ok" if ok else "offline",
-        "detail": {"seed_version": version},
-        "links": [
-            {"label": "Reset /health", "href": PUBLIC["reset_health"]},
-            {"label": "Reset API docs", "href": PUBLIC["reset_docs"]},
-        ],
-    }
-
-
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "service": "lab-scene"}
@@ -371,10 +397,15 @@ async def snapshot() -> dict[str, Any]:
             probe_bms(client),
             probe_chiller(client),
             probe_protocol_runner(client),
-            probe_reset(client),
         )
 
+    active_attacks, events = state_snapshot()
     by_id = {f["id"]: f for f in facilities}
+    if "hl7" in active_attacks:
+        for id_ in ("hl7-engine", "ris-mwl"):
+            if id_ in by_id and by_id[id_].get("online"):
+                by_id[id_]["level"] = "alarm"
+                by_id[id_]["detail"]["integrity"] = "ORDER_MISMATCH"
     cooling = (by_id.get("chiller-sim") or {}).get("detail", {}).get("status")
     mri_status = (by_id.get("mri-sim") or {}).get("detail", {}).get("status")
     online_n = sum(1 for f in facilities if f.get("online"))
@@ -386,14 +417,93 @@ async def snapshot() -> dict[str, Any]:
             "total": len(facilities),
             "cooling": cooling,
             "mri_status": mri_status,
+            "alarms": sum(1 for f in facilities if f.get("level") == "alarm"),
         },
         "facilities": facilities,
+        "active_attacks": active_attacks,
+        "events": events,
         "flows": {
             "clinical": ["hl7-engine", "ris-mwl", "mri-sim", "pacs", "ehr-fhir"],
             "cooling": ["chiller-sim", "bms", "mri-sim"],
         },
         "links": PUBLIC,
     }
+
+
+async def execute_attack(client: httpx.AsyncClient, attack_type: str) -> tuple[bool, Any]:
+    if attack_type == "cooling":
+        return await post_json(client, f"{BMS_URL}/bacnet/write", {"value": "ALARM"})
+    if attack_type == "hl7":
+        now = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        control_id = f"ATTACK-ORM-{now}"
+        message = "\r".join(
+            [
+                f"MSH|^~\\&|HIS|HOSP|RIS|HOSP|{now}||ORM^O01|{control_id}|P|2.5",
+                "PID|||patient-002||SYNTHETIC^PATIENT^002",
+                f"ORC|NW|ACC-001||||||{now}",
+                f"OBR|1|ACC-001|ACC-001|MRI^MRI BRAIN|||{now}||||||||||||||||MR",
+            ]
+        )
+        return await post_json(client, f"{HL7_API}/send", {"message": message})
+    if attack_type == "lateral":
+        vendor_up, biomed_up = await asyncio.gather(
+            asyncio.to_thread(tcp_open, VENDOR_HOST, 22),
+            asyncio.to_thread(tcp_open, BIOMED_HOST, 22),
+        )
+        return vendor_up and biomed_up, {
+            "ok": vendor_up and biomed_up,
+            "path": ["vendor-entry", "biomed-ws"],
+            "ssh": {"vendor-entry": vendor_up, "biomed-ws": biomed_up},
+            "protocol_runner_untouched": True,
+        }
+    return False, {"error": "unsupported attack type"}
+
+
+@app.post("/api/attack")
+async def attack(type_: str = Query(alias="type")) -> JSONResponse:
+    requested = list(ATTACK_TYPES) if type_ == "all" else [type_]
+    if any(item not in ATTACK_TYPES for item in requested):
+        return JSONResponse(
+            {"ok": False, "error": "type must be cooling, hl7, lateral or all"},
+            status_code=400,
+        )
+
+    results: dict[str, Any] = {}
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        for item in requested:
+            ok, detail = await execute_attack(client, item)
+            results[item] = {"ok": ok, "detail": detail}
+            if ok:
+                with _state_lock:
+                    _active_attacks.add(item)
+                message, icon = ATTACK_TYPES[item]
+                add_event(message, 4 if type_ == "all" else 3, icon)
+            else:
+                add_event(f"{item} 攻擊模擬失敗，請檢查服務健康狀態", 3, "x")
+
+    ok = all(result["ok"] for result in results.values())
+    if type_ == "all" and ok:
+        add_event("全面攻擊完成：三條場域鏈路進入異常狀態", 4, "radiation")
+    return JSONResponse({"ok": ok, "attack": type_, "results": results}, status_code=200 if ok else 502)
+
+
+@app.post("/api/reset")
+async def reset_hospital() -> JSONResponse:
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        runner_ok, runner = await post_json(client, f"{RUNNER_STATUS_URL.rstrip('/')}/reset")
+        seed_ok, seed = await post_json(client, f"{RESET_URL}/reset")
+
+    ok = runner_ok and seed_ok
+    if ok:
+        with _state_lock:
+            _active_attacks.clear()
+        add_event("虛擬醫院已重播合成 Seed，所有設施恢復基線", 1, "rotate-ccw")
+    else:
+        add_event("虛擬醫院重置未完整完成，請檢查控制器", 3, "x")
+    return JSONResponse(
+        {"ok": ok, "runner": runner, "seed": seed},
+        status_code=200 if ok else 502,
+    )
 
 
 @app.get("/")

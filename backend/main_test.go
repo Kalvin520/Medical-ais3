@@ -24,6 +24,9 @@ func TestProxyHospitalRequest(t *testing.T) {
 				if req.Method != http.MethodGet {
 					t.Fatalf("unexpected upstream method: %s", req.Method)
 				}
+				if got := req.URL.Query().Get("detail"); got != "full" {
+					t.Fatalf("expected forwarded query detail=full, got %q", got)
+				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -34,7 +37,7 @@ func TestProxyHospitalRequest(t *testing.T) {
 		"http://hospital-scene/api/snapshot",
 		http.MethodGet,
 	)
-	req := httptest.NewRequest(http.MethodGet, "/api/hospital/snapshot", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/hospital/snapshot?detail=full", nil)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)

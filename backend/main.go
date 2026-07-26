@@ -102,7 +102,16 @@ func proxyHospitalRequest(client *http.Client, target string, method string) htt
 			return
 		}
 
-		req, err := http.NewRequestWithContext(r.Context(), method, target, nil)
+		upstreamTarget := target
+		if r.URL.RawQuery != "" {
+			separator := "?"
+			if strings.Contains(upstreamTarget, "?") {
+				separator = "&"
+			}
+			upstreamTarget += separator + r.URL.RawQuery
+		}
+
+		req, err := http.NewRequestWithContext(r.Context(), method, upstreamTarget, nil)
 		if err != nil {
 			http.Error(w, "invalid hospital service target", http.StatusInternalServerError)
 			return
@@ -165,11 +174,7 @@ func main() {
 	if hospitalSceneURL == "" {
 		hospitalSceneURL = "http://127.0.0.1:8101"
 	}
-	hospitalResetURL := strings.TrimRight(os.Getenv("HOSPITAL_RESET_URL"), "/")
-	if hospitalResetURL == "" {
-		hospitalResetURL = "http://127.0.0.1:8099"
-	}
-	hospitalClient := &http.Client{Timeout: 8 * time.Second}
+	hospitalClient := &http.Client{Timeout: 90 * time.Second}
 
 	log.Println("醫療設備教學靶機 (AIS3 · 隔離環境專用) 啟動中...")
 
@@ -291,7 +296,11 @@ func main() {
 	)
 	mux.HandleFunc(
 		"/api/hospital/reset",
-		proxyHospitalRequest(hospitalClient, hospitalResetURL+"/reset", http.MethodPost),
+		proxyHospitalRequest(hospitalClient, hospitalSceneURL+"/api/reset", http.MethodPost),
+	)
+	mux.HandleFunc(
+		"/api/hospital/attack",
+		proxyHospitalRequest(hospitalClient, hospitalSceneURL+"/api/attack", http.MethodPost),
 	)
 
 	staticDir := resolveStaticDir()
