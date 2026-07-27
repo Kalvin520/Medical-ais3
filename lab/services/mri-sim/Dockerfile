@@ -1,9 +1,7 @@
 FROM python:3.12-slim
 
 WORKDIR /app
-RUN pip install --no-cache-dir \
-    fastapi==0.140.1 uvicorn==0.51.0 httpx==0.28.1 \
-    pydicom==3.0.2 pynetdicom==3.0.4
+RUN pip install --no-cache-dir fastapi uvicorn httpx pydicom pynetdicom
 
 COPY app.py /app/app.py
 

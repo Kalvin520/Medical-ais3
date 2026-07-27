@@ -14,7 +14,7 @@
 
 ### 完整 Docker 模式
 
-- Linux、macOS Intel、macOS Apple Silicon 或 Windows + WSL2
+- macOS、Linux 或 Windows + WSL2
 - Docker Desktop 27 或更新版本
 - Docker Compose 2.20 或更新版本
 - Git
@@ -59,25 +59,14 @@ go version
 
 ### 第一次啟動
 
-Linux 或 macOS：
+在 Terminal 執行：
 
 ```bash
-git clone https://github.com/Kalvin520/Medical-ais3.git
-cd Medical-ais3
-./scripts/start.sh
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
+
+# 第一次會自動下載基礎映像並建置完整靶場
+docker compose up -d
 ```
-
-Windows PowerShell（Docker Desktop 必須使用 Linux containers）：
-
-```powershell
-git clone https://github.com/Kalvin520/Medical-ais3.git
-Set-Location Medical-ais3
-.\scripts\start.ps1
-```
-
-啟動腳本會下載本機架構的預建映像，再以 `--no-build` 啟動。因此使用者電腦
-不會執行 `go mod download`、`npm ci` 或 `pip install`，也不受本機 Go/npm
-套件代理限制影響。
 
 根目錄的 `docker-compose.yml` 會載入 `lab/docker-compose.yml` 中的全部服務。
 所有設定都有隔離靶場預設值，因此不需要先建立 `.env`。
@@ -140,43 +129,15 @@ docker compose logs -f
 ### 修改程式後重新建置
 
 ```bash
-cd Medical-ais3
-docker compose -f docker-compose.build.yml up -d --build medical-target
+cd /Users/kalvin/Desktop/Project/medical-target-ais3
+docker compose up -d --build medical-target
 ```
 
 若同時修改了 `lab/services` 或其他 Docker 服務，請重建全部：
 
 ```bash
-docker compose -f docker-compose.build.yml up -d --build
+docker compose up -d --build
 ```
-
-### 離線環境
-
-在可連網且架構相同的電腦先匯出映像：
-
-```bash
-./scripts/export-images.sh
-```
-
-Windows：
-
-```powershell
-.\scripts\export-images.ps1
-```
-
-將產生的 `.tar`、專案目錄與 `.sha256` 一起帶到離線電腦，然後執行：
-
-```bash
-./scripts/load-images.sh dist/medical-ais3-images-amd64.tar
-```
-
-Windows：
-
-```powershell
-.\scripts\load-images.ps1 -Archive .\dist\medical-ais3-images-amd64.tar
-```
-
-完整說明請參閱 `CROSS_PLATFORM_DOCKER.md`。
 
 ### 停止完整靶場
 

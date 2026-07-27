@@ -11,19 +11,18 @@ CALDERA 對接：[CALDERA-對接說明.md](../docs/ais3-fuzzy/CALDERA-對接說�
 ## 快速開始
 
 ```bash
-cd Medical-ais3
-
-# 一般使用：拉取 AMD64/ARM64 預建映像
-./scripts/start.sh
+cd lab
+./scripts/init-lab.sh
+docker compose up -d --build
 
 # 等服務就緒後自檢（含 SSH 橫向、Token 真授權）
-./lab/scripts/smoke-test.sh
+./scripts/smoke-test.sh
 
 # 手動攻擊鏈（不依賴 CALDERA；含真 BACnet）
-./lab/scripts/attack-manual-demo.sh
+./scripts/attack-manual-demo.sh
 
 # 癱瘓協議工具箱（可還原；演示可加 --leave / --hard）
-./lab/scripts/attack-paralyze-protocol-runner.sh
+./scripts/attack-paralyze-protocol-runner.sh
 
 # 一鍵重置
 curl -X POST http://127.0.0.1:8099/reset
@@ -31,15 +30,6 @@ curl -X POST http://127.0.0.1:8099/reset
 # 統一 React/R3F 醫院場域與設備數位孿生
 open http://127.0.0.1:8100
 ```
-
-修改程式後才使用本機建置：
-
-```bash
-docker compose -f docker-compose.build.yml up -d --build
-```
-
-Windows PowerShell 請執行 `.\scripts\start.ps1`。完整跨平台與離線映像說明請參閱
-[CROSS_PLATFORM_DOCKER.md](../CROSS_PLATFORM_DOCKER.md)。
 
 ## 服務與 Port
 

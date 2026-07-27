@@ -10,10 +10,9 @@ FROM golang:1.25.5-alpine AS backend-build
 
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
-COPY backend/vendor/ ./vendor/
+RUN go mod download
 COPY backend/ ./
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -trimpath \
-    -ldflags="-s -w" -o /out/med-target .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/med-target .
 
 FROM alpine:3.21
 
