@@ -1,0 +1,12 @@
+# Local source-build entry point.
+#
+# Build and start every custom image:
+#   docker compose -f docker-compose.build.yml up -d --build
+#
+# Normal users should use docker-compose.yml (or scripts/start.*), which pulls
+# the prebuilt multi-architecture images first.
+
+name: medical-ais3
+
+include:
+  - path: ./lab/docker-compose.yml

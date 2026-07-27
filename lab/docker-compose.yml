@@ -14,6 +14,7 @@ services:
   # Runtime-only shared SSH key. A named volume avoids host bind-mount
   # permissions and keeps the private key out of the repository/build context.
   key-init:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-vendor-entry:${IMAGE_TAG:-main}
     build: ./hosts/vendor-entry
     container_name: hosp-key-init
     network_mode: "none"
@@ -32,6 +33,7 @@ services:
 
   # 統一入口：React/R3F 醫院總覽 + Go 設備數位孿生/API/WebSocket
   medical-target:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-medical-target:${IMAGE_TAG:-main}
     build:
       context: ..
       dockerfile: Dockerfile
@@ -64,6 +66,7 @@ services:
     logging: *default-logging
 
   vendor-entry:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-vendor-entry:${IMAGE_TAG:-main}
     build: ./hosts/vendor-entry
     container_name: hosp-vendor-entry
     hostname: vendor-entry
@@ -93,6 +96,7 @@ services:
     logging: *default-logging
 
   biomed-ws:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-biomed-ws:${IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: hosts/biomed-ws/Dockerfile
@@ -152,6 +156,7 @@ services:
     logging: *default-logging
 
   fhir-gw:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-fhir-gw:${IMAGE_TAG:-main}
     build: ./services/fhir-gw
     container_name: hosp-fhir-gw
     hostname: fhir-gw
@@ -179,6 +184,7 @@ services:
     logging: *default-logging
 
   hl7-engine:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-hl7-engine:${IMAGE_TAG:-main}
     build: ./services/hl7-engine
     container_name: hosp-hl7-engine
     hostname: hl7-engine
@@ -206,6 +212,7 @@ services:
     logging: *default-logging
 
   ris-mwl:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-ris-mwl:${IMAGE_TAG:-main}
     build: ./services/ris-mwl
     container_name: hosp-ris-mwl
     hostname: ris-mwl
@@ -233,6 +240,7 @@ services:
     logging: *default-logging
 
   pacs:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-pacs:${IMAGE_TAG:-main}
     build: ./services/pacs
     container_name: hosp-pacs
     hostname: pacs
@@ -267,6 +275,7 @@ services:
 
   # Host:8042 → 真授權閘道（可依 query 做 patient scope；Orthanc Lua 看不到 query）
   pacs-gw:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-pacs-gw:${IMAGE_TAG:-main}
     build: ./services/pacs-gw
     container_name: hosp-pacs-gw
     hostname: pacs-gw
@@ -297,6 +306,7 @@ services:
     logging: *default-logging
 
   mri-sim:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-mri-sim:${IMAGE_TAG:-main}
     build: ./services/mri-sim
     container_name: hosp-mri-sim
     hostname: mri-sim
@@ -341,6 +351,7 @@ services:
     logging: *default-logging
 
   bms:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-bms:${IMAGE_TAG:-main}
     build: ./services/bms
     container_name: hosp-bms
     hostname: bms
@@ -366,6 +377,7 @@ services:
     logging: *default-logging
 
   chiller-sim:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-chiller-sim:${IMAGE_TAG:-main}
     build: ./services/chiller-sim
     container_name: hosp-chiller
     hostname: chiller-sim
@@ -394,6 +406,7 @@ services:
     logging: *default-logging
 
   protocol-runner:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-protocol-runner:${IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: services/protocol-runner/Dockerfile
@@ -423,6 +436,7 @@ services:
     logging: *default-logging
 
   lab-scene:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-lab-scene:${IMAGE_TAG:-main}
     build: ./services/lab-scene
     container_name: hosp-lab-scene
     hostname: lab-scene
@@ -482,6 +496,7 @@ services:
     logging: *default-logging
 
   reset-controller:
+    image: ${IMAGE_REGISTRY:-ghcr.io/kalvin520}/${IMAGE_PREFIX:-medical-ais3}-reset-controller:${IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: services/reset-controller/Dockerfile

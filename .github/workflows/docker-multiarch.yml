@@ -1,0 +1,117 @@
+name: Build multi-architecture Docker images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/docker-multiarch.yml"
+      - "docker-bake.hcl"
+      - "docker-compose.yml"
+      - "Dockerfile"
+      - "backend/**"
+      - "frontend/**"
+      - "lab/**"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to publish"
+        required: true
+        default: "main"
+        type: string
+      offline_bundles:
+        description: "Also create AMD64 and ARM64 offline image bundles"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-multiarch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set image coordinates
+        shell: bash
+        run: |
+          owner=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          tag="${{ inputs.image_tag }}"
+          if [ -z "$tag" ]; then
+            tag="main"
+          fi
+          echo "IMAGE_REGISTRY=ghcr.io/$owner" >> "$GITHUB_ENV"
+          echo "IMAGE_PREFIX=medical-ais3" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push linux/amd64 and linux/arm64
+        run: docker buildx bake --file docker-bake.hcl --push
+
+  offline-bundles:
+    if: github.event_name == 'workflow_dispatch' && inputs.offline_bundles
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set image coordinates
+        shell: bash
+        run: |
+          owner=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_REGISTRY=ghcr.io/$owner" >> "$GITHUB_ENV"
+          echo "IMAGE_PREFIX=medical-ais3" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${{ inputs.image_tag }}" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Export platform image bundle
+        env:
+          PLATFORM: linux/${{ matrix.arch }}
+        run: |
+          ./scripts/export-images.sh "dist/medical-ais3-images-${{ matrix.arch }}.tar"
+          gzip -1 "dist/medical-ais3-images-${{ matrix.arch }}.tar"
+          sha256sum "dist/medical-ais3-images-${{ matrix.arch }}.tar.gz" \
+            > "dist/medical-ais3-images-${{ matrix.arch }}.tar.gz.sha256"
+
+      - name: Upload offline image bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: medical-ais3-images-${{ matrix.arch }}
+          path: |
+            dist/medical-ais3-images-${{ matrix.arch }}.tar.gz
+            dist/medical-ais3-images-${{ matrix.arch }}.tar.gz.sha256
+          compression-level: 0
+          retention-days: 14

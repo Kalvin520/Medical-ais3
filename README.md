@@ -40,18 +40,28 @@ Browser :8100
 
 需求：
 
-- Docker Desktop 27+ 與 Docker Compose 2.20+
+- Linux：Docker Engine 與 Docker Compose 2.20+
+- macOS：Docker Desktop（Intel 或 Apple Silicon）
+- Windows：Docker Desktop WSL2，並使用 Linux containers
 
 ```bash
 # Clone 後進入專案根目錄
 git clone https://github.com/Kalvin520/Medical-ais3.git
 cd Medical-ais3
 
-# 第一次會自動下載基礎映像並建置完整場域
-docker compose up -d
+# Linux / macOS：下載符合本機架構的預建映像並啟動
+./scripts/start.sh
 
-# 等健康檢查完成後驗證醫院服務與攻擊鏈前置條件
+# 等健康檢查完成後驗證服務
 ./lab/scripts/smoke-test.sh
+```
+
+Windows PowerShell：
+
+```powershell
+git clone https://github.com/Kalvin520/Medical-ais3.git
+Set-Location Medical-ais3
+.\scripts\start.ps1
 ```
 
 開啟：
@@ -72,15 +82,23 @@ docker compose down
 docker compose down -v
 ```
 
-修改程式後需要強制重建時：
+一般啟動會從 GHCR 下載 `linux/amd64` 或 `linux/arm64` 預建映像，不會在使用者
+電腦執行 `go mod download`、`npm ci` 或 `pip install`。
+Go dependency 已放在 `backend/vendor/`，集中式 Docker build 也不需要連線
+`proxy.golang.org`。
+
+修改程式後需要從原始碼重建時：
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.build.yml up -d --build
 ```
 
 根目錄的 `docker-compose.yml` 是可攜式一鍵入口，會載入 `lab/docker-compose.yml`
 中的完整 16 服務醫院拓撲。所有變數都有隔離靶場預設值；若要自訂，可先執行
 `cp .env.example .env`，且不要把產生的 `.env` 提交到 Git。
+
+跨平台映像、離線 `.tar` 打包、Windows PowerShell 與 GitHub Actions 發布方式，
+請參閱 [跨平台 Docker 交付指南](CROSS_PLATFORM_DOCKER.md)。
 
 ## 對外 Port
 
@@ -142,6 +160,10 @@ go test ./...
 cd ../lab
 docker compose config --quiet
 ./scripts/smoke-test.sh
+
+cd ..
+docker buildx bake --file docker-bake.hcl --print
+sh -n scripts/start.sh scripts/export-images.sh scripts/load-images.sh
 ```
 
 ## 文件
