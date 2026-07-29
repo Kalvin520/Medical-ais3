@@ -67,6 +67,7 @@ ATTACK_TYPES = {
 _state_lock = threading.Lock()
 _event_seq = 0
 _active_attacks: set[str] = set()
+_declared_attacks: set[str] = set()
 _events: list[dict[str, Any]] = []
 
 
@@ -90,6 +91,19 @@ def add_event(message: str, level: int = 1, icon: str = "check") -> None:
 def state_snapshot() -> tuple[list[str], list[dict[str, Any]]]:
     with _state_lock:
         return sorted(_active_attacks), [dict(event) for event in _events]
+
+
+def note_inferred(inferred: set[str]) -> None:
+    """首次由真實協定結果推導到某攻擊類型時，補一則對應警報（僅一次，直到 reset）。"""
+    to_announce: list[str] = []
+    with _state_lock:
+        for attack_type in sorted(inferred):
+            if attack_type not in _declared_attacks:
+                _declared_attacks.add(attack_type)
+                to_announce.append(attack_type)
+    for attack_type in to_announce:
+        message, icon = ATTACK_TYPES[attack_type]
+        add_event(message, 3, icon)
 
 
 add_event("迷你虛擬醫院遙測聚合器已啟動", 1, "power")
@@ -306,11 +320,19 @@ async def probe_ris(client: httpx.AsyncClient) -> dict[str, Any]:
     ok_w, wl = await get_json(client, f"{RIS_URL}/worklist")
     ok = ok_h or ok_w
     count = 0
+    order_mismatch = False
     if ok_w:
         if isinstance(wl, list):
-            count = len(wl)
+            items = wl
         elif isinstance(wl, dict):
-            count = len(wl.get("worklist") or wl.get("items") or [])
+            items = wl.get("worklist") or wl.get("items") or []
+        else:
+            items = []
+        count = len(items)
+        # 真實 HL7 錯配特徵：orm_mismatch.hl7 帶入 patient-002（與 seed patient-001 不符）
+        order_mismatch = any(
+            isinstance(it, dict) and it.get("patient_id") == "patient-002" for it in items
+        )
     return {
         "id": "ris-mwl",
         "label": "RIS / MWL",
@@ -318,7 +340,7 @@ async def probe_ris(client: httpx.AsyncClient) -> dict[str, Any]:
         "ip": "10.77.30.20",
         "online": ok,
         "level": "ok" if ok else "offline",
-        "detail": {"worklist_count": count},
+        "detail": {"worklist_count": count, "order_mismatch": order_mismatch},
         "links": [
             {"label": "Worklist", "href": PUBLIC["ris_worklist"]},
             {"label": "RIS API docs", "href": PUBLIC["ris_docs"]},
@@ -399,8 +421,22 @@ async def snapshot() -> dict[str, Any]:
             probe_protocol_runner(client),
         )
 
-    active_attacks, events = state_snapshot()
+    ui_attacks, events = state_snapshot()
     by_id = {f["id"]: f for f in facilities}
+
+    # 由真實協定結果推導攻擊鏈路狀態（不依賴 /api/hospital/attack 記憶體旗標）
+    inferred: set[str] = set()
+    chiller_status = (by_id.get("chiller-sim") or {}).get("detail", {}).get("status")
+    bms_cooling = (by_id.get("bms") or {}).get("detail", {}).get("cooling")
+    mri_status_val = (by_id.get("mri-sim") or {}).get("detail", {}).get("status")
+    if chiller_status == "ALARM" or bms_cooling == "ALARM" or mri_status_val == "PROTECTIVE_STOP":
+        inferred.add("cooling")
+    if (by_id.get("ris-mwl") or {}).get("detail", {}).get("order_mismatch"):
+        inferred.add("hl7")
+
+    note_inferred(inferred)
+    active_attacks = sorted(set(ui_attacks) | inferred)
+
     if "hl7" in active_attacks:
         for id_ in ("hl7-engine", "ris-mwl"):
             if id_ in by_id and by_id[id_].get("online"):
@@ -497,6 +533,7 @@ async def reset_hospital() -> JSONResponse:
     if ok:
         with _state_lock:
             _active_attacks.clear()
+            _declared_attacks.clear()
         add_event("虛擬醫院已重播合成 Seed，所有設施恢復基線", 1, "rotate-ccw")
     else:
         add_event("虛擬醫院重置未完整完成，請檢查控制器", 3, "x")

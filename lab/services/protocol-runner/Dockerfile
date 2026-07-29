@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY services/protocol-runner/bin/ /opt/hospital/bin/
 COPY services/protocol-runner/statusd.py /opt/hospital/statusd.py
 COPY services/protocol-runner/entrypoint.sh /entrypoint.sh
+COPY services/protocol-runner/payloads/ /opt/hospital/payloads/
 COPY seed/ /opt/hospital/seed/
 COPY scripts/ /opt/hospital/scripts/
 RUN chmod +x /entrypoint.sh /opt/hospital/bin/* /opt/hospital/statusd.py \
