@@ -1,0 +1,178 @@
+<mxfile host="app.diagrams.net" agent="Medical-AIS3" version="24.7.0">
+  <diagram name="Lab1-Hospital" id="lab1-hospital">
+    <mxGraphModel dx="1420" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Lab 1 — 迷你虛擬醫院 Docker 靶場&#xa;來源：lab/docker-compose.yml · 6 bridge 網段 · 16 服務" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="400" y="10" width="800" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="host" value="Host（操作員 / 紅隊）" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="60" width="560" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="op" value="Operator&#xa;SSH / HTTP / 腳本" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="host">
+          <mxGeometry x="20" y="35" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="caldera" value="使用者自建 CALDERA&#xa;（範圍外）" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="host">
+          <mxGeometry x="400" y="35" width="140" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zone-dmz" value="hosp-dmz · 10.77.10.0/24" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="170" width="230" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="ve" value="vendor-entry&#xa;10.77.10.20&#xa;Host :2221" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="zone-dmz">
+          <mxGeometry x="20" y="40" width="190" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zone-clin" value="hosp-clinical · 10.77.20.0/24" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="170" width="260" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="bw" value="biomed-ws&#xa;10.77.20.10&#xa;Host :2222" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="zone-clin">
+          <mxGeometry x="15" y="40" width="110" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="fgw" value="fhir-gw&#xa;10.77.20.20&#xa;Host :8180" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="zone-clin">
+          <mxGeometry x="135" y="40" width="110" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="bw-note" value="多網段 attach&#xa;→ integ / imaging / ot" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;" vertex="1" parent="zone-clin">
+          <mxGeometry x="15" y="115" width="230" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zone-integ" value="hosp-integ · 10.77.30.0/24" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="570" y="170" width="250" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="hl7" value="hl7-engine&#xa;10.77.30.10&#xa;:2575 MLLP / :8075 API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="zone-integ">
+          <mxGeometry x="15" y="40" width="220" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ris" value="ris-mwl&#xa;10.77.30.20&#xa;:11114 DICOM / :8085 HTTP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="zone-integ">
+          <mxGeometry x="15" y="105" width="220" height="55" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zone-img" value="hosp-imaging · 10.77.40.0/24" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="170" width="280" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="pacs" value="pacs (Orthanc)&#xa;10.77.40.10&#xa;Host :11112 DIMSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="zone-img">
+          <mxGeometry x="15" y="40" width="250" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="pgw" value="pacs-gw&#xa;10.77.40.12&#xa;Host :8042 DICOMweb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="zone-img">
+          <mxGeometry x="15" y="105" width="250" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="mri" value="mri-sim&#xa;10.77.40.20&#xa;Host :8090" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="zone-img">
+          <mxGeometry x="15" y="170" width="250" height="55" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zone-ot" value="hosp-ot · 10.77.50.0/24" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="380" width="320" height="210" as="geometry"/>
+        </mxCell>
+        <mxCell id="bms" value="bms&#xa;10.77.50.10&#xa;Host :8091" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="zone-ot">
+          <mxGeometry x="15" y="40" width="90" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ch" value="chiller-sim&#xa;10.77.50.20&#xa;:8092 · BACnet UDP 47808" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="zone-ot">
+          <mxGeometry x="115" y="40" width="190" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="pr" value="protocol-runner&#xa;10.77.50.40&#xa;Host :2223 / :8093" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="zone-ot">
+          <mxGeometry x="15" y="110" width="290" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ot-note" value="OT interlock: chiller ALARM → mri-sim PROTECTIVE_STOP" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=2;" vertex="1" parent="zone-ot">
+          <mxGeometry x="15" y="175" width="290" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zone-mgmt" value="hosp-mgmt · 10.77.99.0/24" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="630" y="380" width="490" height="210" as="geometry"/>
+        </mxCell>
+        <mxCell id="rst" value="reset-controller&#xa;10.77.99.10&#xa;Host :8099" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="zone-mgmt">
+          <mxGeometry x="15" y="40" width="110" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scene" value="lab-scene&#xa;10.77.99.11&#xa;internal :8100" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="zone-mgmt">
+          <mxGeometry x="135" y="40" width="110" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mt" value="medical-target&#xa;10.77.99.12&#xa;Host :8100 UI/API&#xa;Modbus :1502 · HL7 :2576 · DICOM :11113" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="zone-mgmt">
+          <mxGeometry x="255" y="35" width="220" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="fhir" value="ehr-fhir (HAPI R4)&#xa;10.77.99.20&#xa;internal :8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="zone-mgmt">
+          <mxGeometry x="15" y="120" width="220" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="vol" value="Volumes: lab-keys · pacs-data · ris-data" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;" vertex="1" parent="zone-mgmt">
+          <mxGeometry x="255" y="125" width="220" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend" value="資料流 / 攻擊鏈&#xa;① 臨床基線: reset → HL7 ADT/ORM → RIS → MRI C-FIND → PACS C-STORE&#xa;② 橫向: vendor-entry --SSH V-02--> biomed-ws → HL7/PACS/FHIR/BMS&#xa;③ 觀測: medical-target → lab-scene 聚合各服務健康狀態&#xa;④ 重置: POST :8099/reset → 清空並重播 seed" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="620" width="1080" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e-op-mt" value="HTTP :8100" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d79b00;" edge="1" parent="1" source="op" target="mt">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-op-ve" value="SSH :2221" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="op" target="ve">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-op-bw" value="SSH :2222" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="op" target="bw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-op-rst" value="POST :8099" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="op" target="rst">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ve-bw" value="SSH 橫向 V-02" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;" edge="1" parent="1" source="ve" target="bw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-bw-hl7" value="MLLP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="bw" target="hl7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-bw-fgw" value="Bearer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="bw" target="fgw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-bw-pgw" value="DICOMweb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="bw" target="pgw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-bw-bms" value="BACnet/HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="bw" target="bms">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-hl7-ris" value="ADT/ORM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;" edge="1" parent="1" source="hl7" target="ris">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-mri-ris" value="C-FIND MWL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="mri" target="ris">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-mri-pacs" value="C-STORE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="mri" target="pacs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-mri-bms" value="讀冷卻狀態" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="mri" target="bms">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-bms-ch" value="HTTP/BACnet" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="bms" target="ch">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ch-mri" value="ALARM interlock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="ch" target="mri">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-fgw-fhir" value="upstream" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="fgw" target="fhir">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-pgw-pacs" value="proxy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="pgw" target="pacs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-mt-scene" value="/api/hospital/*" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="mt" target="scene">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-mt-rst" value="reset proxy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="mt" target="rst">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-rst-seed" value="seed replay" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#666666;" edge="1" parent="1" source="rst" target="hl7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="520"/>
+              <mxPoint x="560" y="195"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-pr-hl7" value="CLI 攻擊" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="pr" target="hl7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-cal-ve" value="Agent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#d6b656;" edge="1" parent="1" source="caldera" target="ve">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,106 @@
+<mxfile host="app.diagrams.net" agent="Medical-AIS3" version="24.7.0">
+  <diagram name="Lab3-MRI" id="lab3-mri">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Lab 3 — MRI 套件數位孿生（MRI Suite Digital Twin）&#xa;Profile: mri · Modbus TCP Unit ID 2 · 容器 medical-ais3-target (10.77.99.12)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="150" y="15" width="900" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="note-separate" value="注意：此為獨立 Modbus PLC 教學靶，與 Lab 1 Docker 服務 mri-sim / bms / chiller-sim 分開" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#ffffcc;strokeColor=#36393d;align=center;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="280" y="65" width="640" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="host" value="Host" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="120" width="360" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="browser" value="Browser&#xa;http://127.0.0.1:8100&#xa;（MRI 套件場景）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="host">
+          <mxGeometry x="90" y="35" width="180" height="55" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="container" value="medical-target 容器 (Go + React 單一進程)&#xa;Docker: medical-ais3-target · 10.77.99.12 · hosp-mgmt" style="swimlane;whiteSpace=wrap;html=1;startSize=40;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="260" width="960" height="420" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="frontend" value="React / R3F 前端&#xa;MRIScene.tsx&#xa;3D MRI 機房 · 冷卻 · RF · 梯度 · 門禁" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="container">
+          <mxGeometry x="30" y="55" width="220" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gateway" value="Go HTTP Gateway&#xa;HTTP_PORT :8090 (Host :8100)&#xa;REST /api/*?facility=mri&#xa;WebSocket /ws 即時遙測" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="container">
+          <mxGeometry x="300" y="55" width="260" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sim" value="GenericFacility Simulator&#xa;profiles_medical.go · NewMRISuite()&#xa;物理模型 tick 100ms&#xa;冷卻 · 射頻功率 · 梯度 · 門禁互鎖" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="container">
+          <mxGeometry x="610" y="55" width="320" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="modbus" value="Modbus TCP Server&#xa;MODBUS_PORT :1502 (與 infusion 共用埠)&#xa;Unit ID = 2 (mri)&#xa;Registers / Coils 映射 PLC 狀態" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="container">
+          <mxGeometry x="300" y="190" width="320" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="unitid" value="Modbus Unit ID 路由&#xa;Unit 1 → infusion (Lab 2)&#xa;Unit 2 → mri (Lab 3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="container">
+          <mxGeometry x="680" y="195" width="250" height="75" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="shared" value="同進程共用 Fuzz Targets（教學用）" style="swimlane;whiteSpace=wrap;html=1;startSize=28;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="container">
+          <mxGeometry x="30" y="300" width="900" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="hl7fuzz" value="HL7/MLLP&#xa;Host :2576" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="shared">
+          <mxGeometry x="30" y="40" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="dicomfuzz" value="DICOM SCP&#xa;Host :11113" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="shared">
+          <mxGeometry x="210" y="40" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="hospital-api" value="/api/hospital/* → lab-scene / reset-controller&#xa;（Lab 1 醫院總覽，與 MRI twin 同一 UI 入口）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;" vertex="1" parent="shared">
+          <mxGeometry x="400" y="40" width="480" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="attacks" value="攻擊面 (REST /api/attack)&#xa;• stopcooling — 停止冷卻&#xa;• overrf — 提高射頻功率&#xa;• unlockdoor — 解鎖磁體室門" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="720" width="280" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="failures" value="失敗模式 (物理模擬)&#xa;• quench — 失超&#xa;• sarburn — SAR 灼傷&#xa;• projectile — 投射物事故" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="400" y="720" width="280" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="attacker" value="外部攻擊者&#xa;Modbus :1502 Unit 2&#xa;或 REST API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="720" width="200" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lab1-ref" value="Lab 1 醫院 mri-sim (:8090) 為 DICOM/BACnet 攻擊鏈一環，非此 Modbus twin" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="830" width="800" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e-br-gw" value="HTTP / WS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="browser" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-gw-fe" value="JSON 狀態" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="gateway" target="frontend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-fe-gw" value="UI 事件" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="frontend" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-gw-sim" value="facility=mri" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="gateway" target="sim">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-sim-modbus" value="register map" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;" edge="1" parent="1" source="sim" target="modbus">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-modbus-unit" value="Unit ID 2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="modbus" target="unitid">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-sim-ws" value="telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" parent="1" source="sim" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-atk-modbus" value="Modbus write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;" edge="1" parent="1" source="attacker" target="modbus">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-atk-gw" value="POST /api/attack" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="attacker" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
